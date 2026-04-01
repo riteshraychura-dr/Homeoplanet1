@@ -1,0 +1,6 @@
+
+{
+  "name": "HomeoCare Pro AI (Single File)",
+  "description": "A single-file, AI-enhanced homeopathy clinic management application. It helps practitioners manage patients, medicines, appointments, and inventory, and includes an AI assistant for symptom analysis and remedy suggestions, plus a financial dashboard with charts. All features are contained within a single HTML file for easy deployment.",
+  "requestFramePermissions": []
+}

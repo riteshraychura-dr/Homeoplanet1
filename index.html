@@ -1,0 +1,1226 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HomeoCare Pro AI</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-h: 174; /* Hue */
+            --primary-s: 48%; /* Saturation */
+            --primary-l: 41%; /* Lightness */
+            
+            --primary: hsl(var(--primary-h), var(--primary-s), var(--primary-l));
+            --primary-dark: hsl(var(--primary-h), var(--primary-s), calc(var(--primary-l) - 10%));
+            --primary-light: hsl(var(--primary-h), var(--primary-s), calc(var(--primary-l) + 45%));
+            --primary-text: hsl(var(--primary-h), var(--primary-s), 10%);
+
+            --sidebar-bg: #1e293b;
+            --sidebar-link: #cbd5e1;
+            --sidebar-hover: #334155;
+            --sidebar-active: var(--primary);
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f1f5f9;
+            font-size: 16px;
+        }
+        .sidebar { background-color: var(--sidebar-bg); transition: transform 0.3s ease-in-out; }
+        .sidebar a { color: var(--sidebar-link); transition: all 0.2s ease; }
+        .sidebar a:hover { background-color: var(--sidebar-hover); color: white; }
+        .sidebar a.active { background-color: var(--sidebar-active); color: white; font-weight: 600; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .stat-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .modal { display: none; animation: fadeIn 0.3s ease; }
+        .modal.active { display: flex; }
+        .modal-content { animation: slideUp 0.4s ease; max-height: 90vh; }
+        .low-stock { background-color: #fef9c3 !important; }
+        .status-paid { background-color: #dcfce7; color: #166534; }
+        .status-unpaid { background-color: #fee2e2; color: #991b1b; }
+        .theme-swatch { cursor: pointer; transition: transform 0.2s; border: 2px solid transparent; }
+        .theme-swatch:hover { transform: scale(1.1); }
+        .theme-swatch.active { border-color: #0ea5e9; }
+        
+        .bg-primary { background-color: var(--primary); }
+        .hover\:bg-primary-dark:hover { background-color: var(--primary-dark); }
+        .text-primary { color: var(--primary); }
+        .focus\:ring-primary:focus { --tw-ring-color: var(--primary); }
+        
+        #app { display: none; }
+        #auth-screen {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #e2e8f0;
+        }
+
+        .history-card-locked {
+            background-color: #f8fafc;
+            border-left: 4px solid #94a3b8;
+        }
+
+        .action-btn:disabled {
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    
+        .ai-suggestion-box {
+            background-color: #f3e8ff;
+            border: 1px solid #d8b4fe;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .ai-suggestion-item {
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            transition: background-color 0.2s;
+        }
+        .ai-suggestion-item:hover {
+            background-color: #e9d5ff;
+        }
+        .chart-bar {
+            background-color: var(--primary);
+            transition: height 0.5s ease-out;
+        }
+        .chart-bar-expense {
+            background-color: #f43f5e;
+        }
+        .tab-btn {
+            border-color: transparent;
+            color: #64748b; /* slate-500 */
+        }
+        .tab-btn:hover {
+            border-color: #cbd5e1; /* slate-300 */
+            color: #334155; /* slate-700 */
+        }
+        .tab-btn.active {
+            border-color: var(--primary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-slate-100">
+
+    <div id="auth-screen">
+        <div class="w-full max-w-md mx-auto p-8">
+            <div class="bg-white shadow-xl rounded-2xl p-8">
+                <div class="text-center mb-6">
+                    <i class="fas fa-stethoscope text-primary text-5xl"></i>
+                    <h1 class="text-3xl font-bold text-slate-800 mt-2">HomeoCare Pro</h1>
+                </div>
+
+                <!-- Login Form -->
+                <div id="login-view">
+                    <h2 class="text-xl font-semibold text-center text-slate-700 mb-4">Admin Login</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="login-email" class="text-sm font-medium text-slate-600">Email Address</label>
+                            <input type="email" id="login-email" class="w-full mt-1 p-3 border border-slate-300 rounded-lg" placeholder="admin@example.com" value="admin@gmail.com">
+                        </div>
+                        <div>
+                            <label for="login-password" class="text-sm font-medium text-slate-600">Password</label>
+                            <input type="password" id="login-password" class="w-full mt-1 p-3 border border-slate-300 rounded-lg" placeholder="••••••••" value="Admin123">
+                        </div>
+                    </div>
+                    <button id="login-btn" class="w-full bg-primary text-white font-bold py-3 px-4 rounded-lg mt-6 hover:bg-primary-dark transition-colors">Sign In</button>
+                    <p id="auth-error" class="text-red-500 text-sm text-center mt-4 h-4"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="app" class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar bg-slate-800 text-white w-64 absolute inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 z-30 flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-slate-700">
+                <h1 id="sidebar-clinic-name" class="text-2xl font-bold flex items-center gap-2">
+                    <i class="fas fa-stethoscope text-primary"></i>
+                    <span>HomeoCare</span>
+                </h1>
+                <button id="close-sidebar" class="md:hidden p-1 text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <nav id="main-nav" class="flex-1 mt-6 space-y-2 px-2 overflow-y-auto">
+                <!-- Nav items will be injected here by JS -->
+            </nav>
+            <div class="px-2 py-4 border-t border-slate-700">
+                 <a href="#" id="logout-btn" class="nav-item flex items-center p-3 rounded-lg text-rose-300 hover:bg-rose-500 hover:text-white">
+                    <i class="fas fa-sign-out-alt w-6 text-center"></i>
+                    <span class="ml-3 font-medium">Logout</span>
+                </a>
+            </div>
+            <div class="p-4 border-t border-slate-700 text-center text-xs text-slate-400">
+                <p class="italic">&copy; Copyright by Suliya Amir</p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="flex justify-between items-center p-4 bg-white border-b border-slate-200">
+                <button id="open-sidebar" class="md:hidden text-slate-600">
+                    <i class="fas fa-bars fa-lg"></i>
+                </button>
+                <h2 id="page-title" class="text-2xl font-semibold text-slate-800">Dashboard</h2>
+                <button id="add-patient-header-btn" class="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 flex items-center gap-2">
+                    <i class="fas fa-user-plus"></i><span class="hidden sm:inline">New Patient</span>
+                </button>
+            </header>
+
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-slate-100 p-4 md:p-6 lg:p-8">
+                <!-- All pages will be rendered here -->
+            </main>
+        </div>
+    </div>
+    
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 hidden md:hidden"></div>
+
+    <!-- Modals will be appended to the body by JS -->
+    
+    <script type="module">
+        import { GoogleGenAI } from "https://esm.run/@google/genai";
+
+        const medicineData = [
+            { id: 1, name: 'Aconitum Napellus', commonName: 'Monkshood', keySymptoms: ['Sudden high fever', 'Anxiety, fear of death', 'Restlessness'], uses: ['Colds', 'Fever', 'Panic attacks'] },
+            { id: 2, name: 'Allium Cepa', commonName: 'Red Onion', keySymptoms: ['Watery eyes that burn', 'Bland nasal discharge', 'Frequent sneezing'], uses: ['Hay fever', 'Common cold'] },
+            { id: 3, name: 'Antimonium Crudum', commonName: 'Black Sulphide of Antimony', keySymptoms: ['Thickly coated white tongue', 'Irritable and fretful', 'Cracked corners of mouth'], uses: ['Indigestion', 'Warts', 'Emotional upsets'] },
+            { id: 4, name: 'Antimonium Tartaricum', commonName: 'Tartar Emetic', keySymptoms: ['Great rattling of mucus in chest', 'Drowsiness, weakness', 'Too weak to cough up mucus'], uses: ['Cough', 'Bronchitis', 'Pneumonia'] },
+            { id: 5, name: 'Apis Mellifica', commonName: 'Honeybee', keySymptoms: ['Stinging, burning pains', 'Swelling with redness', 'Better from cold applications'], uses: ['Insect bites', 'Hives', 'Sore throat'] },
+            { id: 6, name: 'Argentum Nitricum', commonName: 'Silver Nitrate', keySymptoms: ['Anxiety and apprehension', 'Craving for sweets and salt', 'Fear of heights and crowds'], uses: ['Anxiety', 'Indigestion', 'Conjunctivitis'] },
+            { id: 7, name: 'Arnica Montana', commonName: 'Leopard\'s Bane', keySymptoms: ['Sore, bruised feeling', 'Aversion to touch', 'Bed feels too hard'], uses: ['Bruises', 'Sprains', 'Muscle soreness'] },
+            { id: 8, name: 'Arsenicum Album', commonName: 'Arsenic Trioxide', keySymptoms: ['Anxiety and restlessness', 'Burning pains relieved by heat', 'Great thirst for sips of cold water'], uses: ['Food poisoning', 'Flu', 'Anxiety'] },
+            { id: 9, name: 'Aurum Metallicum', commonName: 'Gold', keySymptoms: ['Depression with suicidal thoughts', 'Feeling of worthlessness', 'Worse at night'], uses: ['Depression', 'Bone pains', 'Heart conditions'] },
+            { id: 10, name: 'Baryta Carbonica', commonName: 'Barium Carbonate', keySymptoms: ['Slow mental and physical development', 'Shy, timid', 'lacking confidence', 'Swollen tonsils'], uses: ['Developmental delays', 'Tonsillitis', 'Memory loss in elderly'] },
+            { id: 11, name: 'Belladonna', commonName: 'Deadly Nightshade', keySymptoms: ['Sudden, violent onset of symptoms', 'High fever with red, hot face', 'Dilated pupils'], uses: ['Fever', 'Headache', 'Throat pain'] },
+            { id: 12, name: 'Bellis Perennis', commonName: 'Daisy', keySymptoms: ['Deep tissue injury', 'Bruised soreness', 'Ailments from cold drinks when overheated'], uses: ['Bruises', 'Sprains', 'Post-surgical healing'] },
+            { id: 13, name: 'Berberis Vulgaris', commonName: 'Barberry', keySymptoms: ['Stitching, radiating pains', 'Pain in the kidney region', 'Bubbling sensation in kidneys'], uses: ['Kidney stones', 'Gallstones', 'Lower back pain'] },
+            { id: 14, name: 'Bryonia Alba', commonName: 'Wild Hops', keySymptoms: ['Symptoms worse from any motion', 'Dryness of all mucous membranes', 'Irritability, wants to be left alone'], uses: ['Cough', 'Joint pain', 'Constipation'] },
+            { id: 15, name: 'Cactus Grandiflorus', commonName: 'Night-blooming Cereus', keySymptoms: ['Sensation of a band or cage around the heart', 'Constriction feelings', 'Palpitations'], uses: ['Angina', 'Palpitations', 'Heart conditions'] },
+            { id: 16, name: 'Calcarea Carbonica', commonName: 'Calcium Carbonate', keySymptoms: ['Fatigue, easily tired', 'Anxious and overwhelmed', 'Sweaty head during sleep'], uses: ['Anxiety', 'Slow development in children', 'Fatigue'] },
+            { id: 17, name: 'Calcarea Fluorica', commonName: 'Fluoride of Lime', keySymptoms: ['Hard, stony glands', 'Cracked skin', 'Bone spurs'], uses: ['Hemorrhoids', 'Varicose veins', 'Dental issues'] },
+            { id: 18, name: 'Calcarea Phosphorica', commonName: 'Phosphate of Lime', keySymptoms: ['Slow bone development', 'Growing pains in children', 'Dissatisfied and craves change'], uses: ['Growing pains', 'Fractures', 'Anemia'] },
+            { id: 19, name: 'Calendula Officinalis', commonName: 'Marigold', keySymptoms: ['Promotes healing of wounds', 'Prevents infection', 'Jagged or torn wounds'], uses: ['Cuts', 'Scrapes', 'Burns'] },
+            { id: 20, name: 'Cantharis', commonName: 'Spanish Fly', keySymptoms: ['Intense burning pains', 'Urgent and painful urination', 'Blistering skin eruptions'], uses: ['Urinary tract infections', 'Burns', 'Blisters'] },
+            { id: 21, name: 'Carbo Vegetabilis', commonName: 'Vegetable Charcoal', keySymptoms: ['Collapse state, feels cold', 'Craves fresh air, wants to be fanned', 'Bloating and gas'], uses: ['Indigestion', 'Fainting', 'Shortness of breath'] },
+            { id: 22, name: 'Caulophyllum', commonName: 'Blue Cohosh', keySymptoms: ['Painful, ineffective labor contractions', 'Arthritic pain in small joints', 'Menstrual cramps'], uses: ['Labor difficulties', 'Arthritis', 'Menstrual issues'] },
+            { id: 23, name: 'Causticum', commonName: 'Potassium Hydrate', keySymptoms: ['Paralysis of single parts', 'Contraction of tendons', 'Sympathetic to others\' suffering'], uses: ['Paralysis', 'Arthritis', 'Cough with inability to expectorate'] },
+            { id: 24, name: 'Chamomilla', commonName: 'Chamomile', keySymptoms: ['Extreme irritability and anger', 'One cheek red, one pale', 'Pain is unbearable'], uses: ['Teething in children', 'Colic', 'Menstrual cramps'] },
+            { id: 25, name: 'Cimicifuga Racemosa', commonName: 'Black Cohosh', keySymptoms: ['Gloomy, black cloud feeling', 'Muscle and crampy pains', 'Pain like electric shocks'], uses: ['Menstrual pain', 'Menopause', 'Neck and back pain'] },
+            { id: 26, name: 'Cina', commonName: 'Wormseed', keySymptoms: ['Irritable, cross children', 'Itching of nose', 'Grinding teeth during sleep'], uses: ['Worms', 'Irritability in children', 'Colic'] },
+            { id: 27, name: 'Cinchona Officinalis (China)', commonName: 'Peruvian Bark', keySymptoms: ['Weakness from loss of fluids', 'Painless, debilitating diarrhea', 'Bloating of the whole abdomen'], uses: ['Dehydration', 'Diarrhea', 'Fatigue'] },
+            { id: 28, name: 'Cocculus Indicus', commonName: 'Indian Cockle', keySymptoms: ['Motion sickness', 'Dizziness and nausea', 'Ailments from loss of sleep'], uses: ['Motion sickness', 'Vertigo', 'Insomnia'] },
+            { id: 29, name: 'Coffea Cruda', commonName: 'Unroasted Coffee', keySymptoms: ['Sleeplessness from racing thoughts', 'Oversensitivity of senses', 'Joyful excitement'], uses: ['Insomnia', 'Toothache', 'Headache'] },
+            { id: 30, name: 'Colocynthis', commonName: 'Bitter Cucumber', keySymptoms: ['Abdominal cramps better from bending double', 'Anger with indignation', 'Sciatic pain'], uses: ['Colic', 'Sciatica', 'Menstrual cramps'] },
+            ...Array.from({ length: 470 }, (_, i) => ({ id: 31 + i, name: `Medicinum ${31 + i}`, commonName: `Common Name ${31 + i}`, keySymptoms: [`Symptom A for med ${31 + i}`], uses: [`Use case X for med ${31 + i}`] }))
+        ];
+
+        const debounce = (func, delay) => {
+            let timeoutId;
+            return (...args) => {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    func.apply(this, args);
+                }, delay);
+            };
+        };
+
+        const Templates = {
+            dashboardPage: () => `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="stat-card bg-white p-6 rounded-lg shadow flex items-center col-span-1"><div class="p-3 rounded-full bg-blue-100 text-blue-500"><i class="fas fa-users fa-2x"></i></div><div class="ml-4"><p class="text-sm text-slate-500">Total Patients</p><p id="total-patients" class="text-2xl font-bold text-slate-800">0</p></div></div>
+                    <div class="stat-card bg-white p-6 rounded-lg shadow flex items-center col-span-1"><div class="p-3 rounded-full bg-green-100 text-green-500"><i class="fas fa-calendar-check fa-2x"></i></div><div class="ml-4"><p class="text-sm text-slate-500">Today's Appointments</p><p id="today-appointments" class="text-2xl font-bold text-slate-800">0</p></div></div>
+                    <div class="stat-card bg-white p-6 rounded-lg shadow flex items-center col-span-1"><div class="p-3 rounded-full bg-yellow-100 text-yellow-500"><i class="fas fa-exclamation-triangle fa-2x"></i></div><div class="ml-4"><p class="text-sm text-slate-500">Low Stock Items</p><p id="low-stock-items" class="text-2xl font-bold text-slate-800">0</p></div></div>
+                    <div class="stat-card bg-white p-6 rounded-lg shadow flex items-center col-span-1"><div class="p-3 rounded-full bg-indigo-100 text-indigo-500"><i class="fas fa-pills fa-2x"></i></div><div class="ml-4"><p class="text-sm text-slate-500">Medicine Types</p><p id="total-medicines" class="text-2xl font-bold text-slate-800">0</p></div></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow"><h3 class="text-xl font-semibold mb-4 text-slate-800">Upcoming Appointments</h3><div id="dashboard-appointments-list" class="space-y-3"></div></div>
+                    <div class="bg-white p-6 rounded-lg shadow"><h3 class="text-xl font-semibold mb-4 text-slate-800">Recent Patients</h3><div id="dashboard-patients-list" class="space-y-3"></div></div>
+                    <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow"><h3 class="text-xl font-semibold mb-4 text-slate-800">Upcoming Follow-ups (Next 7 Days)</h3><div id="dashboard-followups-list" class="space-y-3"></div></div>
+                </div>`,
+            patientsPage: () => `<div class="bg-white rounded-lg shadow-md"><div class="p-4 border-b"><input type="text" id="patient-search" placeholder="Search by name, phone, or case number..." class="w-full p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"></div><div id="patients-list" class="divide-y divide-slate-200"></div></div>`,
+            historyPage: () => `<div class="bg-white p-6 rounded-lg shadow"><div class="mb-4"><label for="history-patient-select" class="block text-sm font-medium text-slate-700 mb-1">Select Patient</label><select id="history-patient-select" class="w-full p-2 border border-slate-300 rounded-md"></select></div><div id="history-content"><div class="text-center py-10 text-slate-500"><i class="fas fa-user-clock fa-3x mb-3"></i><p>Select a patient to view or add medical history.</p></div></div></div>`,
+            medicinesPage: () => `<div class="bg-white rounded-lg shadow-md p-4"><div class="flex flex-wrap justify-between items-center gap-4 mb-4"><input type="text" id="medicine-search" placeholder="Search medicines by name or symptom..." class="w-full md:w-auto flex-grow p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"><button id="add-medicine-btn" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark flex items-center gap-2 w-full sm:w-auto"><i class="fas fa-plus"></i> New Medicine</button></div><div id="medicines-list" class="h-[calc(100vh-16rem)] overflow-y-auto"></div></div>`,
+            appointmentsPage: () => `<div class="bg-white rounded-lg shadow-md"><div class="p-4 border-b flex flex-wrap justify-between items-center gap-4"><div><label for="appointment-date-filter" class="text-slate-700">Select Date:</label><input type="date" id="appointment-date-filter" class="ml-2 p-2 border rounded border-slate-300"></div><button id="add-appointment-btn" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark flex items-center gap-2"><i class="fas fa-plus"></i> New Appointment</button></div><div id="appointments-list"></div></div>`,
+            inventoryPage: () => `<div class="bg-white rounded-lg shadow-md p-4"><input type="text" id="inventory-search" placeholder="Search medicines..." class="w-full p-3 mb-4 border border-slate-300 rounded-lg"><div id="inventory-list" class="h-[calc(100vh-14rem)] overflow-y-auto"></div></div>`,
+            billingPage: () => `<div class="bg-white rounded-lg shadow-md p-4"><div class="flex flex-wrap justify-between items-center gap-4 mb-4"><input type="text" id="billing-search" placeholder="Search by patient name..." class="w-full md:w-auto flex-grow p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"><button id="add-bill-btn" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark flex items-center gap-2 w-full sm:w-auto"><i class="fas fa-plus"></i> Create New Bill</button></div><div id="billing-list" class="h-[calc(100vh-16rem)] overflow-y-auto"></div></div>`,
+            expensesPage: () => `<div class="bg-white rounded-lg shadow-md p-4"><div class="flex flex-wrap justify-between items-center gap-4 mb-4"><input type="text" id="expense-search" placeholder="Search by description or category..." class="w-full md:w-auto flex-grow p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"><button id="add-expense-btn" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark flex items-center gap-2 w-full sm:w-auto"><i class="fas fa-plus"></i> New Expense</button></div><div id="expense-list" class="h-[calc(100vh-16rem)] overflow-y-auto"></div></div>`,
+            financialsPage: () => `
+                <div class="space-y-8">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                            <h3 class="text-xl font-semibold text-slate-800">Financials Overview</h3>
+                            <div>
+                                <select id="financials-date-filter" class="p-2 border rounded border-slate-300">
+                                    <option value="this-month">This Month</option>
+                                    <option value="last-month">Last Month</option>
+                                    <option value="last-3-months">Last 3 Months</option>
+                                    <option value="this-year">This Year</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                            <div><p class="text-sm text-slate-500">Total Revenue</p><p id="financials-revenue" class="text-3xl font-bold text-green-600">₹0</p></div>
+                            <div><p class="text-sm text-slate-500">Total Expenses</p><p id="financials-expenses" class="text-3xl font-bold text-red-600">₹0</p></div>
+                            <div><p class="text-sm text-slate-500">Net Profit</p><p id="financials-profit" class="text-3xl font-bold text-blue-600">₹0</p></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-xl font-semibold mb-4 text-slate-800">Monthly Performance</h3>
+                        <div id="monthly-chart-container" class="w-full h-64 flex items-end justify-around gap-4 border-l border-b border-slate-200 p-4"></div>
+                        <div class="flex justify-center gap-6 mt-2 text-sm">
+                            <span class="flex items-center gap-2"><div class="w-3 h-3 bg-primary"></div> Revenue</span>
+                            <span class="flex items-center gap-2"><div class="w-3 h-3 bg-rose-500"></div> Expenses</span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-xl font-semibold mb-4 text-slate-800">Expense Breakdown</h3>
+                        <div id="expense-pie-chart-container" class="flex justify-center items-center"></div>
+                    </div>
+                </div>`,
+            reportsPage: () => `
+                <div class="space-y-8">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-xl font-semibold border-b pb-2 mb-4 text-slate-800">Reports Center</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                            <div><label class="block text-sm font-medium text-slate-700">Start Date</label><input type="date" id="report-start-date" class="mt-1 w-full p-2 border rounded border-slate-300"></div>
+                            <div><label class="block text-sm font-medium text-slate-700">End Date</label><input type="date" id="report-end-date" class="mt-1 w-full p-2 border rounded border-slate-300"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="flex justify-between items-center">
+                            <h4 class="text-lg font-semibold text-slate-700">Medicine Dispensing Report</h4>
+                            <button id="download-medicine-report-btn" class="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 flex items-center gap-2"><i class="fas fa-download"></i> Download CSV</button>
+                        </div>
+                        <p class="text-sm text-slate-500 mt-1">Lists all medicines prescribed to patients within the selected date range.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                         <div class="flex justify-between items-center">
+                            <h4 class="text-lg font-semibold text-slate-700">Patient Visit Report</h4>
+                            <button id="download-visit-report-btn" class="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 flex items-center gap-2"><i class="fas fa-download"></i> Download CSV</button>
+                        </div>
+                        <p class="text-sm text-slate-500 mt-1">A log of all patient visits (history records created) within the date range.</p>
+                    </div>
+                </div>`,
+            settingsPage: () => `
+                <div class="space-y-8">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-xl font-semibold border-b pb-2 mb-4 text-slate-800">AI Configuration</h3>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700">Gemini API Key</label>
+                            <input type="password" id="setting-api-key" placeholder="Enter your API key" class="mt-1 w-full p-2 border rounded border-slate-300">
+                            <p class="text-xs text-slate-500 mt-1">Your API key is stored locally in your browser and is required for AI features.</p>
+                        </div>
+                        <button id="save-api-key-btn" class="mt-4 bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark">Save Key</button>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-xl font-semibold border-b pb-2 mb-4 text-slate-800">Appearance</h3>
+                        <p class="text-sm text-slate-600 mb-4">Choose a color theme for the application.</p>
+                        <div id="theme-selector" class="flex gap-4">
+                            <div class="theme-swatch w-10 h-10 rounded-full bg-cyan-500" data-theme="teal"></div>
+                            <div class="theme-swatch w-10 h-10 rounded-full bg-blue-500" data-theme="blue"></div>
+                            <div class="theme-swatch w-10 h-10 rounded-full bg-green-500" data-theme="green"></div>
+                            <div class="theme-swatch w-10 h-10 rounded-full bg-slate-500" data-theme="slate"></div>
+                             <div class="theme-swatch w-10 h-10 rounded-full bg-rose-500" data-theme="rose"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow"><h3 class="text-xl font-semibold border-b pb-2 mb-4 text-slate-800">Clinic Information</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-sm font-medium text-slate-700">Clinic Name</label><input type="text" id="setting-clinic-name" class="mt-1 w-full p-2 border rounded border-slate-300"></div><div><label class="block text-sm font-medium text-slate-700">Doctor Name</label><input type="text" id="setting-doctor-name" class="mt-1 w-full p-2 border rounded border-slate-300"></div><div><label class="block text-sm font-medium text-slate-700">Clinic Address</label><input type="text" id="setting-clinic-address" class="mt-1 w-full p-2 border rounded border-slate-300"></div><div><label class="block text-sm font-medium text-slate-700">Clinic Phone</label><input type="text" id="setting-clinic-phone" class="mt-1 w-full p-2 border rounded border-slate-300"></div></div><button id="save-settings-btn" class="mt-4 bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark">Save Settings</button></div>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <h3 class="text-xl font-semibold border-b pb-2 mb-4 text-slate-800">Account Security</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Login Email</label>
+                                <input type="email" id="setting-admin-email" class="mt-1 w-full p-2 border rounded border-slate-300">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">New Password</label>
+                                <input type="password" id="setting-admin-password" placeholder="Leave blank to keep unchanged" class="mt-1 w-full p-2 border rounded border-slate-300">
+                            </div>
+                        </div>
+                        <button id="save-credentials-btn" class="mt-4 bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark">Save Credentials</button>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow"><h3 class="text-xl font-semibold border-b pb-2 mb-4 text-slate-800">Data Management</h3><div class="flex flex-wrap gap-4"><button id="backup-data-btn" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 flex items-center gap-2"><i class="fas fa-download"></i> Backup Data (JSON)</button><label class="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 cursor-pointer flex items-center gap-2"><i class="fas fa-upload"></i> Restore Data<input type="file" id="restore-data-input" class="hidden" accept=".json"></label></div></div>
+                </div>`,
+            patientListItem: (p, lastVisit) => `<div data-id="${p.id}" class="patient-item p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50"><div class="flex items-center"><div class="w-10 h-10 rounded-full bg-primary-light text-primary-text flex items-center justify-center font-bold text-lg mr-4">${p.name.charAt(0)}</div><div><p class="font-semibold text-slate-800">${p.name} <span class="text-sm font-normal text-slate-500">(#${p.caseNumber})</span></p><p class="text-sm text-slate-500">${p.phone} | ${p.age} yrs, ${p.gender}</p></div></div><div>${lastVisit ? `<p class="text-xs text-right text-slate-500">Last Visit:</p><p class="text-sm text-right font-medium text-slate-600">${lastVisit}</p>` : `<p class="text-sm font-medium text-slate-500">New Patient</p>`}<i class="fas fa-chevron-right text-slate-400 mt-1"></i></div></div>`,
+            historyContent: (patient) => `<div class="border-t pt-4 mt-4">
+                <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                    <h3 class="text-xl font-semibold text-slate-800">Details for ${patient.name} (#${patient.caseNumber})</h3>
+                    <button id="add-history-btn" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark"><i class="fas fa-plus"></i> Add New Record</button>
+                </div>
+                <div class="border-b border-gray-200">
+                    <nav id="history-tabs" class="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button data-tab="records" class="tab-btn active whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">Medical Records</button>
+                        <button data-tab="comms" class="tab-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">Communication Log</button>
+                    </nav>
+                </div>
+                <div id="tab-content-records" class="tab-content active mt-4">
+                    <div class="flex justify-end mb-2">
+                        <button id="export-history-pdf-btn" data-id="${patient.id}" class="bg-red-500 text-white py-1 px-3 rounded hover:bg-red-600 text-sm"><i class="fas fa-file-pdf"></i> Export PDF</button>
+                    </div>
+                    <div id="history-records-list" class="space-y-4"></div>
+                </div>
+                <div id="tab-content-comms" class="tab-content mt-4"></div>
+            </div>`,
+            historyRecordCard: (h) => {
+                const isTemporarilyUnlocked = App.state.unlockedRecordIds.has(h.id);
+                const contentVisible = !h.isLocked || isTemporarilyUnlocked;
+
+                return `
+                <div class="history-record-card bg-white rounded-lg shadow p-4 text-slate-800 ${h.isLocked ? 'history-card-locked' : ''}" data-id="${h.id}">
+                    <div class="flex justify-between items-start border-b pb-2 mb-2">
+                        <div>
+                            <p class="font-bold text-md">${new Date(h.id).toLocaleDateString()}</p>
+                            <p class="font-semibold text-slate-700">${h.complaint}</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            ${h.isLocked ? `<i class="fas fa-lock ${isTemporarilyUnlocked ? 'text-green-500' : 'text-slate-400'}" title="Record is locked"></i>` : ''}
+                            <span class="text-sm font-medium text-slate-600">Fee: ₹${h.fee || 0}</span>
+                            <div class="flex gap-2">
+                                <button class="action-btn edit-history-btn text-blue-500 hover:text-blue-700" ${h.isLocked ? 'disabled title="Unlock to edit"' : ''}><i class="fas fa-edit"></i></button>
+                                <button class="action-btn lock-history-btn ${h.isLocked ? 'text-yellow-500 hover:text-yellow-700' : 'text-slate-500 hover:text-slate-700'}" title="${h.isLocked ? 'Unlock record' : 'Lock record'}"><i class="fas ${h.isLocked ? 'fa-unlock' : 'fa-lock'}"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    ${contentVisible ? `
+                    <div class="space-y-2 mt-2 text-sm">
+                        ${h.presentIllness ? `<p><strong>Present Illness:</strong> ${h.presentIllness}</p>` : ''}
+                        ${h.pastHistory ? `<p><strong>Past History:</strong> ${h.pastHistory}</p>` : ''}
+                        ${h.familyHistory ? `<p><strong>Family History:</strong> ${h.familyHistory}</p>` : ''}
+                    </div>
+                    ${h.prescription && h.prescription.length > 0 ? `<div class="mt-2"><p class="text-sm font-semibold mb-1">Prescription:</p><ul class="text-sm list-disc list-inside pl-2">${h.prescription.map(p => `<li>${p.name} (${p.potency}) - ${p.dosage}</li>`).join('')}</ul></div>` : ''}
+                    ${h.notes ? `<p class="text-sm mt-2 pt-2 border-t"><strong>Notes:</strong> ${h.notes}</p>` : ''}
+                    ${h.followUpDate ? `<p class="text-sm mt-2 pt-2 border-t font-medium"><strong>Next Follow-up:</strong> ${new Date(h.followUpDate  + 'T00:00:00').toLocaleDateString()}</p>` : ''}
+                    ` : `
+                    <div class="locked-content-placeholder text-center py-6 cursor-pointer view-locked-trigger">
+                        <i class="fas fa-eye-slash text-slate-400 text-3xl"></i>
+                        <p class="mt-2 font-semibold text-slate-600">Record Locked</p>
+                        <p class="text-sm text-slate-500">Click to view details</p>
+                    </div>
+                    `}
+                </div>`;
+            },
+            historyRecordForm: (h = null) => `
+                <div id="history-form-container" class="mt-4 border rounded-lg p-4 bg-slate-50" data-id="${h ? h.id : ''}">
+                    <h4 class="text-lg font-semibold mb-4 text-slate-800">${h ? 'Edit' : 'New'} Medical Record</h4>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between items-center">
+                                <label class="block text-sm font-medium text-slate-700">Chief Complaint*</label>
+                                <button id="ai-analysis-btn" title="AI Symptom Analysis" class="text-primary hover:text-primary-dark"><i class="fas fa-magic-sparkles"></i> AI Analysis</button>
+                            </div>
+                            <textarea id="history-complaint" rows="2" class="mt-1 w-full p-2 border rounded border-slate-300">${h ? h.complaint : ''}</textarea>
+                            <div id="ai-suggestion-container"></div>
+                        </div>
+                        <div><label class="block text-sm font-medium text-slate-700">History of Present Illness</label><textarea id="history-present-illness" rows="3" class="mt-1 w-full p-2 border rounded border-slate-300">${h ? h.presentIllness : ''}</textarea></div>
+                        <div><label class="block text-sm font-medium text-slate-700">Past Medical History</label><textarea id="history-past" rows="2" class="mt-1 w-full p-2 border rounded border-slate-300">${h ? h.pastHistory : ''}</textarea></div>
+                        <div><label class="block text-sm font-medium text-slate-700">Family History</label><textarea id="history-family" rows="2" class="mt-1 w-full p-2 border rounded border-slate-300">${h ? h.familyHistory : ''}</textarea></div>
+                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label class="block text-sm font-medium text-slate-700">Consultation Fee (₹)</label><input type="number" id="history-fee" class="mt-1 w-full p-2 border rounded border-slate-300" value="${h ? h.fee : ''}"></div>
+                            <div><label class="block text-sm font-medium text-slate-700">Next Follow-up Date</label><input type="date" id="history-follow-up" class="mt-1 w-full p-2 border rounded border-slate-300" value="${h ? h.followUpDate : ''}"></div>
+                        </div>
+                    </div>
+                    <div class="mt-4 relative">
+                        <label class="block text-sm font-medium text-slate-700">Prescription</label>
+                        <div class="border rounded p-2 mt-1 bg-white">
+                            <div class="flex flex-wrap gap-2">
+                                <input type="text" id="prescription-search" placeholder="Search & add medicine..." class="flex-1 p-2 border rounded border-slate-300">
+                                <input type="text" id="prescription-potency" placeholder="Potency" class="w-24 p-2 border rounded border-slate-300">
+                                <input type="text" id="prescription-dosage" placeholder="Dosage" class="w-32 p-2 border rounded border-slate-300">
+                                <button id="add-prescription-btn" class="bg-blue-500 text-white px-4 rounded hover:bg-blue-600">Add</button>
+                            </div>
+                            <div id="prescription-search-results" class="absolute z-10 w-full bg-white border shadow-lg mt-1 rounded max-h-48 overflow-y-auto"></div>
+                            <div id="prescription-list" class="mt-2 space-y-1"></div>
+                        </div>
+                    </div>
+                    <div class="mt-4"><label class="block text-sm font-medium text-slate-700">Notes & Instructions</label><textarea id="history-notes" rows="3" class="mt-1 w-full p-2 border rounded border-slate-300">${h ? h.notes : ''}</textarea></div>
+                    <div class="mt-4 flex gap-2">
+                        <button id="save-history-btn" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark">${h ? 'Save Changes' : 'Save Record'}</button>
+                        <button id="save-lock-history-btn" class="bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600 flex items-center gap-2"><i class="fas fa-lock"></i> Save & Lock</button>
+                        <button id="cancel-history-btn" class="bg-slate-500 text-white py-2 px-4 rounded hover:bg-slate-600 ml-auto">Cancel</button>
+                    </div>
+                </div>`,
+            communicationLogContent: (patientId) => `
+                <div id="communication-log-container">
+                    <div id="new-comm-form" class="mb-4 p-4 bg-slate-50 rounded-lg">
+                        <h4 class="font-semibold mb-2">Add New Log Entry</h4>
+                        <textarea id="new-comm-text" class="w-full p-2 border rounded" rows="3" placeholder="Log a call, email, or message..."></textarea>
+                        <button id="save-comm-btn" data-patient-id="${patientId}" class="mt-2 bg-blue-500 text-white py-1 px-3 rounded text-sm hover:bg-blue-600">Save Entry</button>
+                    </div>
+                    <div id="comm-list" class="space-y-3"></div>
+                </div>
+            `,
+            communicationLogItem: (comm) => `
+                <div class="bg-white p-3 rounded-lg shadow-sm border">
+                    <p class="text-sm text-slate-800 whitespace-pre-wrap">${comm.text}</p>
+                    <p class="text-xs text-slate-500 text-right mt-2">${new Date(comm.id).toLocaleString()}</p>
+                </div>
+            `,
+            appointmentModal: (apt = {}, patients) => `<div id="appointment-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-40 items-center justify-center"><div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-lg m-4"><h2 class="text-2xl font-bold mb-4">${apt.id ? 'Edit' : 'New'} Appointment</h2><input type="hidden" id="appointment-id" value="${apt.id || ''}"><div class="space-y-4"><div><label>Patient*</label><select id="appointment-patient" class="w-full p-2 border rounded mt-1 border-slate-300"><option value="">Select patient</option>${patients.map(p => `<option value="${p.id}" ${apt.patientId == p.id ? 'selected' : ''}>${p.name} (#${p.caseNumber})</option>`).join('')}</select></div><div><label>Date*</label><input id="appointment-date" type="date" class="w-full p-2 border rounded mt-1 border-slate-300" value="${apt.date || ''}"></div><div><label>Time*</label><input id="appointment-time" type="time" class="w-full p-2 border rounded mt-1 border-slate-300" value="${apt.time || ''}"></div><div><label>Purpose / Notes</label><textarea id="appointment-notes" rows="3" class="w-full p-2 border rounded mt-1 border-slate-300">${apt.notes || ''}</textarea></div></div><div class="mt-6 flex justify-end gap-3">${apt.id ? `<button id="delete-appointment-btn" class="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600 mr-auto">Delete</button>` : ''}<button id="cancel-appointment-modal" class="bg-slate-200 py-2 px-4 rounded text-slate-800 hover:bg-slate-300">Cancel</button><button id="save-appointment-btn" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark">Save</button></div></div></div>`,
+            patientModal: (p = {}) => `<div id="patient-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-40 items-center justify-center"><div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-lg m-4"><h2 class="text-2xl font-bold mb-4 text-slate-800">${p.id ? 'Edit' : 'Add New'} Patient</h2><input type="hidden" id="patient-id" value="${p.id || ''}"><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="md:col-span-2"><label class="text-slate-700">Case Number</label><input id="patient-case-number" class="w-full p-2 border rounded mt-1 bg-slate-100 border-slate-300" value="${p.caseNumber || 'Will be generated'}" readonly></div><div><label class="text-slate-700">Full Name*</label><input id="patient-name" class="w-full p-2 border rounded mt-1 border-slate-300" value="${p.name || ''}"></div><div><label class="text-slate-700">Phone*</label><input id="patient-phone" class="w-full p-2 border rounded mt-1 border-slate-300" value="${p.phone || ''}"></div><div><label class="text-slate-700">Age*</label><input id="patient-age" type="number" class="w-full p-2 border rounded mt-1 border-slate-300" value="${p.age || ''}"></div><div><label class="text-slate-700">Gender*</label><select id="patient-gender" class="w-full p-2 border rounded mt-1 border-slate-300"><option value="Male" ${p.gender === 'Male' ? 'selected' : ''}>Male</option><option value="Female" ${p.gender === 'Female' ? 'selected' : ''}>Female</option><option value="Other" ${p.gender === 'Other' ? 'selected' : ''}>Other</option></select></div></div><div class="mt-6 flex justify-end gap-3">${p.id ? `<button id="delete-patient-btn" class="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600 mr-auto">Delete</button>` : ''}<button id="cancel-patient-modal" class="bg-slate-200 py-2 px-4 rounded hover:bg-slate-300 text-slate-800">Cancel</button><button id="save-patient-btn" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark">Save Patient</button></div></div></div>`,
+            medicineModal: (med = {}) => `<div id="medicine-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-40 items-center justify-center"><div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-lg m-4"><h2 class="text-2xl font-bold mb-4 text-slate-800">${med.id ? 'Edit' : 'Add New'} Medicine</h2><input type="hidden" id="medicine-id" value="${med.id || ''}"><div class="space-y-4"><div><label class="text-slate-700">Medicine Name*</label><input id="medicine-name" class="w-full p-2 border rounded mt-1 border-slate-300" value="${med.name || ''}"></div><div><label class="text-slate-700">Common Name</label><input id="medicine-common-name" class="w-full p-2 border rounded mt-1 border-slate-300" value="${med.commonName || ''}"></div><div><label class="text-slate-700">Key Symptoms (comma separated)</label><textarea id="medicine-symptoms" rows="3" class="w-full p-2 border rounded mt-1 border-slate-300">${(med.keySymptoms || []).join(', ')}</textarea></div><div><label class="text-slate-700">Main Uses (comma separated)</label><textarea id="medicine-uses" rows="3" class="w-full p-2 border rounded mt-1 border-slate-300">${(med.uses || []).join(', ')}</textarea></div></div><div class="mt-6 flex justify-end gap-3">${med.id ? `<button id="delete-medicine-btn" class="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600 mr-auto">Delete</button>` : ''}<button id="cancel-medicine-modal" class="bg-slate-200 py-2 px-4 rounded hover:bg-slate-300 text-slate-800">Cancel</button><button id="save-medicine-btn" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark">Save Medicine</button></div></div></div>`,
+            billModal: (bill = {}, patients) => {
+                const billItems = bill.items || [{ description: 'Consultation', qty: 1, price: 0 }];
+                return `<div id="bill-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4"><div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl m-4 overflow-y-auto"><h2 class="text-2xl font-bold mb-4 text-slate-800">${bill.id ? 'Edit' : 'Create'} Bill / Invoice</h2><input type="hidden" id="bill-id" value="${bill.id || ''}"><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="text-slate-700">Patient*</label><select id="bill-patient" class="w-full p-2 border rounded mt-1 border-slate-300"><option value="">Select patient</option>${patients.map(p => `<option value="${p.id}" ${bill.patientId == p.id ? 'selected' : ''}>${p.name} (#${p.caseNumber})</option>`).join('')}</select></div><div><label class="text-slate-700">Bill Date*</label><input id="bill-date" type="date" class="w-full p-2 border rounded mt-1 border-slate-300" value="${bill.date || new Date().toISOString().slice(0,10)}"></div></div><div class="mt-4"><h3 class="font-semibold text-slate-700 mb-2">Bill Items</h3><div id="bill-items-container" class="space-y-2">${billItems.map((item, index) => `<div class="bill-item flex items-center gap-2"><input type="text" placeholder="Description" class="flex-grow p-2 border rounded" value="${item.description}"><input type="number" placeholder="Qty" class="w-20 p-2 border rounded" value="${item.qty}"><input type="number" placeholder="Price" class="w-24 p-2 border rounded" value="${item.price}"><button class="remove-bill-item-btn text-red-500 hover:text-red-700 p-2">✖</button></div>`).join('')}</div><button id="add-bill-item-btn" class="mt-2 text-sm text-primary hover:text-primary-dark font-medium">+ Add Item</button></div><div class="mt-6 border-t pt-4 flex justify-between items-center"><div><label class="text-slate-700 font-semibold">Status:</label><select id="bill-status" class="p-2 border rounded ml-2"><option value="unpaid" ${bill.status === 'unpaid' ? 'selected' : ''}>Unpaid</option><option value="paid" ${bill.status === 'paid' ? 'selected' : ''}>Paid</option></select></div><div class="text-xl font-bold text-slate-800">Total: ₹<span id="bill-total">0</span></div></div><div class="mt-6 flex justify-end gap-3">${bill.id ? `<button id="print-bill-btn" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 mr-auto flex items-center gap-2"><i class="fas fa-print"></i>Print</button><button id="delete-bill-btn" class="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600">Delete</button>`: ''}<button id="cancel-bill-modal" class="bg-slate-200 py-2 px-4 rounded hover:bg-slate-300 text-slate-800">Cancel</button><button id="save-bill-btn" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark">Save Bill</button></div></div></div>`;
+            },
+            expenseModal: (exp = {}) => `<div id="expense-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-40 items-center justify-center"><div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-lg m-4"><h2 class="text-2xl font-bold mb-4">${exp.id ? 'Edit' : 'New'} Expense</h2><input type="hidden" id="expense-id" value="${exp.id || ''}"><div class="space-y-4"><div><label>Date*</label><input id="expense-date" type="date" class="w-full p-2 border rounded mt-1 border-slate-300" value="${exp.date || new Date().toISOString().slice(0,10)}"></div><div><label>Category*</label><select id="expense-category" class="w-full p-2 border rounded mt-1 border-slate-300">${['Supplies', 'Rent', 'Utilities', 'Salary', 'Other'].map(c => `<option value="${c}" ${exp.category == c ? 'selected' : ''}>${c}</option>`).join('')}</select></div><div><label>Description*</label><textarea id="expense-description" rows="3" class="w-full p-2 border rounded mt-1 border-slate-300">${exp.description || ''}</textarea></div><div><label>Amount (₹)*</label><input id="expense-amount" type="number" class="w-full p-2 border rounded mt-1 border-slate-300" value="${exp.amount || ''}"></div></div><div class="mt-6 flex justify-end gap-3">${exp.id ? `<button id="delete-expense-btn" class="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600 mr-auto">Delete</button>` : ''}<button id="cancel-expense-modal" class="bg-slate-200 py-2 px-4 rounded text-slate-800 hover:bg-slate-300">Cancel</button><button id="save-expense-btn" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark">Save</button></div></div></div>`,
+            passwordPromptModal: (action) => `
+                <div id="password-prompt-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div class="modal-content bg-white rounded-lg shadow-xl p-6 w-full max-w-sm m-4">
+                        <h2 class="text-xl font-bold mb-4 text-slate-800">Confirm Action</h2>
+                        <p class="text-slate-600 mb-4">To ${action} this record, please enter the admin password.</p>
+                        <div>
+                            <label for="admin-password-confirm" class="text-sm font-medium text-slate-600">Password</label>
+                            <input type="password" id="admin-password-confirm" class="w-full mt-1 p-3 border border-slate-300 rounded-lg" autofocus>
+                        </div>
+                        <div class="mt-6 flex justify-end gap-3">
+                            <button id="cancel-password-prompt" class="bg-slate-200 py-2 px-4 rounded text-slate-800 hover:bg-slate-300">Cancel</button>
+                            <button id="confirm-password-prompt" class="bg-primary text-white py-2 px-4 rounded hover:bg-primary-dark">Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            `,
+        };
+
+        const App = {
+            isAppStarted: false,
+            ai: null,
+            state: { currentPage: 'dashboard', isSidebarOpen: false, medicines: [], patients: [], histories: [], appointments: [], inventory: [], bills: [], expenses: [], communications: [], settings: { clinicName: 'HomeoCare', doctorName: 'Dr. User', clinicAddress: '', clinicPhone: '', theme: 'teal', caseNumberPrefix: '', lastCaseNumber: 0, adminEmail: 'admin@gmail.com', adminPassword: 'Admin123', apiKey: '' },  currentPrescription: [], unlockedRecordIds: new Set() },
+            themes: {
+                teal: { h: 174, s: '48%', l: '41%' },
+                blue: { h: 217, s: '91%', l: '60%' },
+                green: { h: 142, s: '76%', l: '36%' },
+                slate: { h: 222, s: '47%', l: '55%' },
+                rose: { h: 347, s: '90%', l: '61%' },
+            },
+
+            init() {
+                this.loadState();
+                this.setupLoginListener();
+                if (sessionStorage.getItem('isLoggedIn') === 'true') {
+                    this.showApp();
+                } else {
+                    this.showLoginScreen();
+                }
+            },
+
+            showApp() {
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('app').style.display = 'flex';
+                if (!this.isAppStarted) {
+                    this.startApp();
+                    this.isAppStarted = true;
+                } else {
+                    this.switchPage(this.state.currentPage || 'dashboard');
+                }
+            },
+
+            showLoginScreen() {
+                document.getElementById('auth-screen').style.display = 'flex';
+                document.getElementById('app').style.display = 'none';
+            },
+
+            setupLoginListener() {
+                const loginBtn = document.getElementById('login-btn');
+                const passwordInput = document.getElementById('login-password');
+                loginBtn.addEventListener('click', () => this.login());
+                passwordInput.addEventListener('keyup', (e) => {
+                    if (e.key === 'Enter') this.login();
+                });
+            },
+
+            login() {
+                const email = document.getElementById('login-email').value;
+                const pass = document.getElementById('login-password').value;
+                const errorEl = document.getElementById('auth-error');
+                
+                const adminEmail = this.state.settings.adminEmail || 'admin@gmail.com';
+                const adminPassword = this.state.settings.adminPassword || 'Admin123';
+
+                if (email === adminEmail && pass === adminPassword) {
+                    errorEl.textContent = '';
+                    sessionStorage.setItem('isLoggedIn', 'true');
+                    this.showApp();
+                } else {
+                    errorEl.textContent = 'Invalid email or password.';
+                }
+            },
+
+            logout() {
+                if (confirm('Are you sure you want to logout?')) {
+                    sessionStorage.removeItem('isLoggedIn');
+                    this.showLoginScreen();
+                }
+            },
+
+            startApp() {
+                if (this.state.settings.apiKey) {
+                    try {
+                        this.ai = new GoogleGenAI({ apiKey: this.state.settings.apiKey });
+                    } catch (e) {
+                        console.error("Failed to initialize GoogleGenAI:", e);
+                        this.showToast("Invalid API Key format.", true);
+                    }
+                }
+                this.elements = {
+                    sidebar: document.getElementById('sidebar'), 
+                    sidebarOverlay: document.getElementById('sidebar-overlay'),
+                    openSidebarBtn: document.getElementById('open-sidebar'), 
+                    closeSidebarBtn: document.getElementById('close-sidebar'),
+                    addPatientHeaderBtn: document.getElementById('add-patient-header-btn'), 
+                    pageTitle: document.getElementById('page-title'),
+                    mainContent: document.querySelector('main'), 
+                    mainNav: document.getElementById('main-nav'),
+                    sidebarClinicName: document.querySelector('#sidebar-clinic-name span'),
+                    logoutBtn: document.getElementById('logout-btn'),
+                };
+                this.navItems = [
+                    { id: 'dashboard', title: 'Dashboard', icon: 'fa-home', template: Templates.dashboardPage },
+                    { id: 'patients', title: 'Patients', icon: 'fa-users', template: Templates.patientsPage },
+                    { id: 'history', title: 'Medical History', icon: 'fa-file-medical', template: Templates.historyPage },
+                    { id: 'appointments', title: 'Appointments', icon: 'fa-calendar-alt', template: Templates.appointmentsPage },
+                    { id: 'billing', title: 'Billing', icon: 'fa-file-invoice-dollar', template: Templates.billingPage },
+                    { id: 'financials', title: 'Financials', icon: 'fa-chart-pie', template: Templates.financialsPage },
+                    { id: 'expenses', title: 'Expenses', icon: 'fa-wallet', template: Templates.expensesPage },
+                    { id: 'reports', title: 'Reports', icon: 'fa-chart-line', template: Templates.reportsPage },
+                    { id: 'medicines', title: 'Medicines', icon: 'fa-pills', template: Templates.medicinesPage },
+                    { id: 'inventory', title: 'Inventory', icon: 'fa-boxes', template: Templates.inventoryPage },
+                    { id: 'settings', title: 'Settings', icon: 'fa-cog', template: Templates.settingsPage },
+                ];
+                
+                this.applyTheme(this.state.settings.theme);
+                this.updateClinicNameUI();
+                this.setupEventListeners();
+                this.renderNav();
+                this.switchPage(this.state.currentPage || 'dashboard');
+                console.log("HomeoCare Pro Initialized");
+            },
+            
+            getDataKey() {
+                return `homeocare_state_local_admin`;
+            },
+
+            loadState() {
+                try {
+                    const savedStateJSON = localStorage.getItem(this.getDataKey());
+                    const savedState = savedStateJSON ? JSON.parse(savedStateJSON) : {};
+                    const defaultState = { currentPage: 'dashboard', isSidebarOpen: false, medicines: [], patients: [], histories: [], appointments: [], inventory: [], bills: [], expenses: [], communications: [], settings: { clinicName: 'HomeoCare', doctorName: 'Dr. User', clinicAddress: '', clinicPhone: '', theme: 'teal', caseNumberPrefix: '', lastCaseNumber: 0, adminEmail: 'admin@gmail.com', adminPassword: 'Admin123', apiKey: '' },  currentPrescription: [], unlockedRecordIds: new Set() };
+                    
+                    const mergedSettings = { ...defaultState.settings, ...(savedState.settings || {}) };
+                    this.state = { ...defaultState, ...savedState, settings: mergedSettings };
+
+                    this.state.unlockedRecordIds = new Set();
+                } catch (e) { console.error("Could not load state", e); }
+                if (!this.state.medicines || this.state.medicines.length < 50) this.state.medicines = medicineData;
+                this.saveState();
+            },
+            
+            saveState() { 
+                const stateToSave = { ...this.state };
+                delete stateToSave.unlockedRecordIds;
+                localStorage.setItem(this.getDataKey(), JSON.stringify(stateToSave)); 
+            },
+
+            applyTheme(themeName) {
+                const theme = this.themes[themeName];
+                if (!theme) return;
+                const root = document.documentElement;
+                root.style.setProperty('--primary-h', theme.h);
+                root.style.setProperty('--primary-s', theme.s);
+                root.style.setProperty('--primary-l', theme.l);
+                this.state.settings.theme = themeName;
+                this.saveState();
+
+                if (document.getElementById('settings-page')) {
+                    document.querySelectorAll('.theme-swatch').forEach(sw => {
+                        sw.classList.toggle('active', sw.dataset.theme === themeName);
+                    });
+                }
+            },
+
+            updateClinicNameUI() {
+                this.elements.sidebarClinicName.textContent = this.state.settings.clinicName;
+            },
+
+            setupEventListeners() {
+                this.elements.openSidebarBtn.addEventListener('click', () => this.toggleSidebar(true));
+                this.elements.closeSidebarBtn.addEventListener('click', () => this.toggleSidebar(false));
+                this.elements.sidebarOverlay.addEventListener('click', () => this.toggleSidebar(false));
+                this.elements.addPatientHeaderBtn.addEventListener('click', () => this.showPatientModal());
+                this.elements.logoutBtn.addEventListener('click', () => this.logout());
+            },
+            
+            toggleSidebar(forceOpen) { this.state.isSidebarOpen = forceOpen; this.elements.sidebar.classList.toggle('-translate-x-full', !forceOpen); this.elements.sidebarOverlay.classList.toggle('hidden', !forceOpen); },
+            renderNav() { this.elements.mainNav.innerHTML = this.navItems.map(item => `<a href="#" data-page="${item.id}" class="nav-item flex items-center p-3 rounded-lg"><i class="fas ${item.icon} w-6 text-center"></i><span class="ml-3 font-medium">${item.title}</span></a>`).join(''); this.elements.mainNav.addEventListener('click', e => { const navItem = e.target.closest('.nav-item'); if (navItem) { e.preventDefault(); this.switchPage(navItem.dataset.page); } }); },
+            showToast(message, isError = false) { const toast = document.createElement('div'); toast.className = `fixed top-5 right-5 p-4 rounded-lg shadow-lg text-white ${isError ? 'bg-red-500' : 'bg-green-500'}`; toast.textContent = message; document.body.appendChild(toast); setTimeout(() => toast.remove(), 3000); },
+            switchPage(pageId) { this.state.currentPage = pageId; const pageInfo = this.navItems.find(p => p.id === pageId); this.elements.pageTitle.textContent = pageInfo.title; this.elements.mainContent.innerHTML = `<div id="${pageId}-page" class="page active">${pageInfo.template()}</div>`; const renderFunc = this[`render_${pageId}`]; if (typeof renderFunc === 'function') renderFunc.call(this); document.querySelectorAll('#main-nav .nav-item').forEach(item => { item.classList.toggle('active', item.dataset.page === pageId); }); if (window.innerWidth < 768) this.toggleSidebar(false); this.saveState(); },
+            render_dashboard() { 
+                const today = new Date();
+                const todayStr = today.toISOString().slice(0, 10);
+                document.getElementById('total-patients').textContent = this.state.patients.length.toString(); 
+                document.getElementById('today-appointments').textContent = this.state.appointments.filter(a => a.date === todayStr).length.toString(); 
+                const lowStockCount = this.state.inventory.filter(i => i.qty < 10).length; 
+                document.getElementById('low-stock-items').textContent = lowStockCount.toString(); 
+                document.getElementById('total-medicines').textContent = this.state.medicines.length.toString();
+
+                const aptListEl = document.getElementById('dashboard-appointments-list'); 
+                const upcomingApts = this.state.appointments.filter(a => a.date >= todayStr).sort((a,b) => (a.date + a.time).localeCompare(b.date + b.time)).slice(0, 5); aptListEl.innerHTML = upcomingApts.length > 0 ? upcomingApts.map(a => { const p = this.state.patients.find(p => p.id === a.patientId); return `<div class="flex items-center justify-between p-2 rounded hover:bg-slate-50"><p class="text-slate-700">${p?.name || 'Unknown'}</p><p class="text-sm font-medium text-slate-500">${new Date(a.date+'T00:00:00').toLocaleDateString([], {weekday: 'short', month: 'short', day: 'numeric'})}, ${a.time}</p></div>`; }).join('') : `<p class="text-center text-slate-500 p-4">No upcoming appointments.</p>`; 
+                
+                const patientListEl = document.getElementById('dashboard-patients-list'); 
+                const recentPatients = [...this.state.patients].sort((a,b) => b.id - a.id).slice(0, 5); patientListEl.innerHTML = recentPatients.length > 0 ? recentPatients.map(p => `<div class="flex items-center justify-between p-2 rounded hover:bg-slate-50"><p class="text-slate-700">${p.name} (#${p.caseNumber})</p><p class="text-sm text-slate-500">${p.phone}</p></div>`).join('') : `<p class="text-center text-slate-500 p-4">No patients yet.</p>`; 
+                
+                const followupsListEl = document.getElementById('dashboard-followups-list');
+                const nextWeek = new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().slice(0,10);
+                const upcomingFollowups = this.state.histories
+                    .filter(h => h.followUpDate && h.followUpDate >= todayStr && h.followUpDate <= nextWeek)
+                    .sort((a,b) => a.followUpDate.localeCompare(b.followUpDate));
+                followupsListEl.innerHTML = upcomingFollowups.length > 0 ? upcomingFollowups.map(h => {
+                    const p = this.state.patients.find(p => p.id === h.patientId);
+                    const isOverdue = new Date(h.followUpDate) < new Date(todayStr);
+                    return `<div class="flex items-center justify-between p-2 rounded hover:bg-slate-50">
+                        <p class="text-slate-700">${p?.name || 'Unknown'}</p>
+                        <p class="text-sm font-medium ${isOverdue ? 'text-red-500' : 'text-slate-500'}">
+                            ${new Date(h.followUpDate+'T00:00:00').toLocaleDateString()} ${isOverdue ? '(Overdue)' : ''}
+                        </p>
+                    </div>`;
+                }).join('') : `<p class="text-center text-slate-500 p-4">No follow-ups scheduled for the next 7 days.</p>`;
+            },
+            render_patients() { const listEl = document.getElementById('patients-list'); const searchEl = document.getElementById('patient-search'); const renderList = () => { const term = searchEl.value.toLowerCase(); const filteredPatients = this.state.patients.filter(p => p.name.toLowerCase().includes(term) || p.phone.includes(term) || (p.caseNumber && p.caseNumber.toLowerCase().includes(term))); listEl.innerHTML = filteredPatients.length > 0 ? filteredPatients.map(p => { const lastHistory = this.state.histories.filter(h => h.patientId === p.id).sort((a,b) => b.id - a.id)[0]; const lastVisitDate = lastHistory ? new Date(lastHistory.id).toLocaleDateString() : null; return Templates.patientListItem(p, lastVisitDate); }).join('') : `<p class="p-4 text-center text-slate-500">No patients found. Click "New Patient" to add one.</p>`; }; searchEl.addEventListener('input', debounce(renderList, 300)); listEl.addEventListener('click', e => { const item = e.target.closest('.patient-item'); if (item) this.showPatientModal(this.state.patients.find(p => p.id == item.dataset.id)); }); renderList(); },
+            render_history() { 
+                const selectEl = document.getElementById('history-patient-select');
+                selectEl.innerHTML = '<option value="">-- Select a Patient --</option>' + this.state.patients.sort((a,b) => a.name.localeCompare(b.name)).map(p => `<option value="${p.id}">${p.name} (#${p.caseNumber})</option>`).join('');
+                selectEl.addEventListener('change', e => this.renderHistoryForPatient(e.target.value)); 
+                
+                const historyContentEl = document.getElementById('history-content');
+                historyContentEl.addEventListener('click', (e) => {
+                    const card = e.target.closest('.history-record-card');
+                    if (!card) return;
+
+                    const historyId = Number(card.dataset.id);
+
+                    if (e.target.closest('.edit-history-btn')) {
+                        this.showEditHistoryForm(historyId);
+                    } else if (e.target.closest('.lock-history-btn')) {
+                        this.toggleLockHistoryRecord(historyId);
+                    } else if (e.target.closest('.view-locked-trigger')) {
+                        this.viewLockedRecord(historyId);
+                    }
+                });
+            },
+            render_medicines() { const listEl = document.getElementById('medicines-list'); const searchEl = document.getElementById('medicine-search'); const renderList = () => { const searchTerm = searchEl.value.toLowerCase(); const filtered = this.state.medicines.filter(med => med.name.toLowerCase().includes(searchTerm) || (med.commonName && med.commonName.toLowerCase().includes(searchTerm)) || (med.keySymptoms && med.keySymptoms.some(s => s.toLowerCase().includes(searchTerm)))); listEl.innerHTML = filtered.length > 0 ? `<table class="w-full text-sm text-left text-slate-500"><thead class="text-xs text-slate-700 uppercase bg-slate-50 sticky top-0"><tr><th class="px-6 py-3">Name</th><th class="px-6 py-3">Common Name</th><th class="px-6 py-3">Key Use</th></tr></thead><tbody>${filtered.map(med => `<tr class="bg-white border-b hover:bg-slate-50 cursor-pointer" data-id="${med.id}"><td class="px-6 py-4 font-medium text-slate-900">${med.name}</td><td class="px-6 py-4">${med.commonName}</td><td class="px-6 py-4">${med.uses[0]}</td></tr>`).join('')}</tbody></table>` : `<p class="p-4 text-slate-500">No medicines found.</p>`; listEl.querySelectorAll('tr[data-id]').forEach(row => { row.addEventListener('click', () => { const med = this.state.medicines.find(m => m.id == row.dataset.id); this.showMedicineModal(med); }); }); }; searchEl.addEventListener('input', debounce(renderList, 300)); document.getElementById('add-medicine-btn').addEventListener('click', () => this.showMedicineModal()); renderList(); },
+            render_appointments() { const dateFilter = document.getElementById('appointment-date-filter'); dateFilter.value = new Date().toISOString().slice(0, 10); const renderList = () => { const selectedDate = dateFilter.value; const listEl = document.getElementById('appointments-list'); const dailyAppointments = this.state.appointments.filter(a => a.date === selectedDate).sort((a,b) => a.time.localeCompare(b.time)); listEl.innerHTML = dailyAppointments.length > 0 ? dailyAppointments.map(a => { const p = this.state.patients.find(p => p.id === a.patientId); return `<div data-id="${a.id}" class="appointment-item p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 border-b"><div><p class="font-bold text-slate-800">${a.time} - ${p?.name || 'Unknown Patient'}</p><p class="text-sm text-slate-600">${a.notes}</p></div><i class="fas fa-chevron-right text-slate-400"></i></div>` }).join('') : `<p class="p-4 text-center text-slate-500">No appointments for this day.</p>`; listEl.querySelectorAll('.appointment-item').forEach(el => { el.addEventListener('click', e => { const apt = this.state.appointments.find(a => a.id == el.dataset.id); this.showAppointmentModal(apt); }); }); }; dateFilter.addEventListener('change', renderList); document.getElementById('add-appointment-btn').addEventListener('click', () => this.showAppointmentModal()); renderList(); },
+            render_inventory() { const listEl = document.getElementById('inventory-list'); const searchEl = document.getElementById('inventory-search'); const renderList = () => { const term = searchEl.value.toLowerCase(); const meds = this.state.medicines.filter(m => m.name.toLowerCase().includes(term)); listEl.innerHTML = `<table class="w-full text-sm text-left"><thead class="text-xs text-slate-700 uppercase bg-slate-50 sticky top-0"><tr><th class="px-6 py-3">Medicine</th><th class="px-6 py-3">Stock</th><th class="px-6 py-3">Actions</th></tr></thead><tbody>${meds.map(m => { const item = this.state.inventory.find(i => i.medId === m.id); const stock = item ? item.qty : 0; return `<tr class="bg-white border-b hover:bg-slate-50 ${stock < 10 ? 'low-stock' : ''}"><td class="px-6 py-4 font-medium">${m.name}</td><td class="px-6 py-4 font-bold">${stock}</td><td class="px-6 py-4 flex gap-2"><button data-id="${m.id}" class="add-stock-btn bg-green-500 text-white w-8 h-8 rounded hover:bg-green-600">+</button><button data-id="${m.id}" class="remove-stock-btn bg-red-500 text-white w-8 h-8 rounded hover:bg-red-600">-</button></td></tr>` }).join('')}</tbody></table>`; }; searchEl.addEventListener('input', debounce(renderList, 300)); listEl.addEventListener('click', e => { const target = e.target; const id = target.dataset.id; if (!id) return; if (target.classList.contains('add-stock-btn')) this.updateStock(id, 1); if (target.classList.contains('remove-stock-btn')) this.updateStock(id, -1); }); renderList(); },
+            render_billing() { const listEl = document.getElementById('billing-list'); const searchEl = document.getElementById('billing-search'); const renderList = () => { const searchTerm = searchEl.value.toLowerCase(); const filteredBills = this.state.bills.filter(bill => { const patient = this.state.patients.find(p => p.id === bill.patientId); return patient && patient.name.toLowerCase().includes(searchTerm); }); listEl.innerHTML = filteredBills.length > 0 ? `<table class="w-full text-sm text-left text-slate-500"><thead class="text-xs text-slate-700 uppercase bg-slate-50 sticky top-0"><tr><th class="px-6 py-3">Patient</th><th class="px-6 py-3">Date</th><th class="px-6 py-3">Amount</th><th class="px-6 py-3">Status</th></tr></thead><tbody>${filteredBills.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(bill => { const patient = this.state.patients.find(p => p.id === bill.patientId); const total = bill.items.reduce((sum, item) => sum + (item.qty * item.price), 0); const statusClass = bill.status === 'paid' ? 'status-paid' : 'status-unpaid'; return `<tr class="bg-white border-b hover:bg-slate-50 cursor-pointer" data-id="${bill.id}"><td class="px-6 py-4 font-medium text-slate-900">${patient ? patient.name : 'Unknown'}</td><td class="px-6 py-4">${new Date(bill.date + 'T00:00:00').toLocaleDateString()}</td><td class="px-6 py-4">₹${total.toFixed(2)}</td><td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${bill.status.toUpperCase()}</span></td></tr>` }).join('')}</tbody></table>` : `<p class="p-4 text-center text-slate-500">No bills found. Click 'Create New Bill' to start.</p>`; listEl.querySelectorAll('tr[data-id]').forEach(row => { row.addEventListener('click', () => { const bill = this.state.bills.find(b => b.id == row.dataset.id); this.showBillModal(bill); }); }); }; searchEl.addEventListener('input', debounce(renderList, 300)); document.getElementById('add-bill-btn').addEventListener('click', () => this.showBillModal()); renderList(); },
+            render_expenses() { const listEl = document.getElementById('expense-list'); const searchEl = document.getElementById('expense-search'); const renderList = () => { const searchTerm = searchEl.value.toLowerCase(); const filtered = this.state.expenses.filter(exp => exp.description.toLowerCase().includes(searchTerm) || exp.category.toLowerCase().includes(searchTerm)); listEl.innerHTML = filtered.length > 0 ? `<table class="w-full text-sm text-left text-slate-500"><thead class="text-xs text-slate-700 uppercase bg-slate-50 sticky top-0"><tr><th class="px-6 py-3">Date</th><th class="px-6 py-3">Category</th><th class="px-6 py-3">Description</th><th class="px-6 py-3">Amount</th></tr></thead><tbody>${filtered.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(exp => `<tr class="bg-white border-b hover:bg-slate-50 cursor-pointer" data-id="${exp.id}"><td class="px-6 py-4">${new Date(exp.date + 'T00:00:00').toLocaleDateString()}</td><td class="px-6 py-4 font-medium text-slate-900">${exp.category}</td><td class="px-6 py-4">${exp.description}</td><td class="px-6 py-4">₹${exp.amount.toFixed(2)}</td></tr>`).join('')}</tbody></table>` : `<p class="p-4 text-center text-slate-500">No expenses found. Click 'New Expense' to start.</p>`; listEl.querySelectorAll('tr[data-id]').forEach(row => { row.addEventListener('click', () => { const exp = this.state.expenses.find(e => e.id == row.dataset.id); this.showExpenseModal(exp); }); }); }; searchEl.addEventListener('input', debounce(renderList, 300)); document.getElementById('add-expense-btn').addEventListener('click', () => this.showExpenseModal()); renderList(); },
+            render_reports() { const today = new Date().toISOString().slice(0,10); document.getElementById('report-start-date').value = today; document.getElementById('report-end-date').value = today; document.getElementById('download-medicine-report-btn').addEventListener('click', () => this.generateMedicineReport()); document.getElementById('download-visit-report-btn').addEventListener('click', () => this.generateVisitReport()); },
+            render_financials() {
+                const filterEl = document.getElementById('financials-date-filter');
+                filterEl.addEventListener('change', () => this.updateFinancials());
+                this.updateFinancials();
+            },
+            render_settings() { 
+                const clinicNameEl = document.getElementById('setting-clinic-name');
+                const doctorNameEl = document.getElementById('setting-doctor-name');
+                const clinicAddressEl = document.getElementById('setting-clinic-address');
+                const clinicPhoneEl = document.getElementById('setting-clinic-phone');
+                const adminEmailEl = document.getElementById('setting-admin-email');
+                const apiKeyEl = document.getElementById('setting-api-key');
+
+                clinicNameEl.value = this.state.settings.clinicName || '';
+                doctorNameEl.value = this.state.settings.doctorName || '';
+                clinicAddressEl.value = this.state.settings.clinicAddress || '';
+                clinicPhoneEl.value = this.state.settings.clinicPhone || '';
+                adminEmailEl.value = this.state.settings.adminEmail || 'admin@gmail.com';
+                apiKeyEl.value = this.state.settings.apiKey || '';
+
+                document.getElementById('save-api-key-btn').addEventListener('click', () => {
+                    const newKey = apiKeyEl.value.trim();
+                    this.state.settings.apiKey = newKey;
+                    this.saveState();
+                    if (newKey) {
+                        try {
+                            this.ai = new GoogleGenAI({ apiKey: newKey });
+                            this.showToast('API Key saved and activated!');
+                        } catch(e) {
+                             this.showToast('Invalid API Key format.', true);
+                             this.ai = null;
+                        }
+                    } else {
+                        this.ai = null;
+                        this.showToast('API Key removed.');
+                    }
+                });
+
+                document.getElementById('save-settings-btn').addEventListener('click', () => {
+                    this.state.settings.clinicName = clinicNameEl.value;
+                    this.state.settings.doctorName = doctorNameEl.value;
+                    this.state.settings.clinicAddress = clinicAddressEl.value;
+                    this.state.settings.clinicPhone = clinicPhoneEl.value;
+                    this.saveState();
+                    this.updateClinicNameUI();
+                    this.showToast('Clinic info saved!');
+                });
+
+                document.getElementById('save-credentials-btn').addEventListener('click', () => {
+                    const newEmail = adminEmailEl.value.trim();
+                    const newPassword = document.getElementById('setting-admin-password').value;
+
+                    if (!newEmail) {
+                        this.showToast('Email cannot be empty.', true);
+                        return;
+                    }
+                    this.state.settings.adminEmail = newEmail;
+                    if (newPassword) {
+                        this.state.settings.adminPassword = newPassword;
+                    }
+                    this.saveState();
+                    this.showToast('Credentials updated successfully!');
+                    document.getElementById('setting-admin-password').value = '';
+                });
+
+                document.getElementById('backup-data-btn').addEventListener('click', () => this.backupData());
+                document.getElementById('restore-data-input').addEventListener('change', e => this.restoreData(e));
+                document.getElementById('theme-selector').addEventListener('click', e => { const theme = e.target.dataset.theme; if(theme) this.applyTheme(theme); });
+                this.applyTheme(this.state.settings.theme);
+            },
+            renderHistoryForPatient(patientId) { 
+                this.state.unlockedRecordIds.clear(); 
+                const contentEl = document.getElementById('history-content'); 
+                if (!patientId) { 
+                    contentEl.innerHTML = `<div class="text-center py-10 text-slate-500"><i class="fas fa-user-clock fa-3x mb-3"></i><p>Select a patient.</p></div>`; 
+                    return; 
+                } 
+                const patient = this.state.patients.find(p => p.id == patientId); 
+                contentEl.innerHTML = Templates.historyContent(patient); 
+                const recordsListEl = document.getElementById('history-records-list'); 
+                const patientHistories = this.state.histories.filter(h => h.patientId == patientId).sort((a,b) => b.id - a.id); 
+                recordsListEl.innerHTML = patientHistories.length > 0 ? patientHistories.map(Templates.historyRecordCard).join('') : `<p class="text-slate-500 text-center p-4">No history records found.</p>`; 
+                
+                const tabsContainer = document.getElementById('history-tabs');
+                tabsContainer.addEventListener('click', e => {
+                    const btn = e.target.closest('.tab-btn');
+                    if (!btn) return;
+                    
+                    tabsContainer.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    document.querySelectorAll('#history-content .tab-content').forEach(c => c.classList.remove('active'));
+                    document.getElementById(`tab-content-${btn.dataset.tab}`).classList.add('active');
+                });
+                
+                document.getElementById('tab-content-comms').innerHTML = Templates.communicationLogContent(patientId);
+                this.renderCommunicationLog(patientId);
+                document.getElementById('save-comm-btn').addEventListener('click', (e) => this.saveCommunicationLog(e.target.dataset.patientId));
+
+                document.getElementById('add-history-btn').addEventListener('click', () => this.showHistoryForm(patientId)); 
+                document.getElementById('export-history-pdf-btn').addEventListener('click', () => this.generatePatientPDF(patientId)); 
+            },
+            showHistoryForm(patientId, historyId = null) {
+                const existingForm = document.getElementById('history-form-container');
+                if (existingForm) existingForm.remove();
+
+                const record = historyId ? this.state.histories.find(h => h.id == historyId) : null;
+                const formHTML = Templates.historyRecordForm(record);
+                
+                let targetElement;
+                if (historyId) {
+                    targetElement = document.querySelector(`.history-record-card[data-id="${historyId}"]`);
+                    targetElement.style.display = 'none';
+                    targetElement.insertAdjacentHTML('afterend', formHTML);
+                } else {
+                    targetElement = document.getElementById('history-records-list');
+                    targetElement.insertAdjacentHTML('afterbegin', formHTML);
+                }
+
+                this.state.currentPrescription = record ? [...record.prescription] : [];
+                this.renderPrescriptionList();
+
+                const formEl = document.getElementById('history-form-container');
+                formEl.querySelector('#cancel-history-btn').addEventListener('click', () => {
+                    formEl.remove();
+                    if(targetElement && historyId) targetElement.style.display = 'block';
+                });
+                formEl.querySelector('#add-prescription-btn').addEventListener('click', () => this.addPrescriptionItem());
+                formEl.querySelector('#save-history-btn').addEventListener('click', () => {
+                    this.saveHistoryRecord(patientId, historyId, false);
+                });
+                formEl.querySelector('#save-lock-history-btn').addEventListener('click', () => {
+                    this.saveHistoryRecord(patientId, historyId, true);
+                });
+                
+                const searchInput = formEl.querySelector('#prescription-search');
+                const resultsEl = formEl.querySelector('#prescription-search-results');
+                searchInput.addEventListener('input', e => {
+                    const term = e.target.value.toLowerCase();
+                    if (term.length < 2) { resultsEl.innerHTML = ''; return; }
+                    const matches = this.state.medicines.filter(m => m.name.toLowerCase().includes(term)).slice(0, 5);
+                    resultsEl.innerHTML = matches.map(m => `<div class="p-2 cursor-pointer hover:bg-slate-100" data-name="${m.name}">${m.name}</div>`).join('');
+                });
+                resultsEl.addEventListener('click', e => {
+                    const target = e.target;
+                    if (target.dataset.name) {
+                        searchInput.value = target.dataset.name;
+                        resultsEl.innerHTML = '';
+                    }
+                });
+                 formEl.querySelector('#ai-analysis-btn').addEventListener('click', () => this.getAiSymptomAnalysis());
+            },
+            showEditHistoryForm(historyId) {
+                const record = this.state.histories.find(h => h.id == historyId);
+                if (record) {
+                    this.showHistoryForm(record.patientId, historyId);
+                }
+            },
+            async toggleLockHistoryRecord(historyId) {
+                const record = this.state.histories.find(h => h.id == historyId);
+                if (record) {
+                    const action = record.isLocked ? 'unlock' : 'lock';
+                    const enteredPassword = await this.showPasswordPrompt(action);
+
+                    if (enteredPassword === null) return;
+                    
+                    const adminPassword = this.state.settings.adminPassword || 'Admin123';
+                    if (enteredPassword === adminPassword) {
+                        record.isLocked = !record.isLocked;
+                        this.saveState();
+                        this.renderHistoryForPatient(record.patientId);
+                        this.showToast(`Record ${action}ed successfully!`);
+                    } else {
+                        this.showToast('Incorrect password. Action cancelled.', true);
+                    }
+                }
+            },
+            async viewLockedRecord(historyId) {
+                const record = this.state.histories.find(h => h.id == historyId);
+                if (record && record.isLocked) {
+                    const enteredPassword = await this.showPasswordPrompt('view');
+
+                    if (enteredPassword === null) return;
+
+                    const adminPassword = this.state.settings.adminPassword || 'Admin123';
+                    if (enteredPassword === adminPassword) {
+                        this.state.unlockedRecordIds.add(record.id);
+                        this.renderHistoryForPatient(record.patientId);
+                        this.showToast('Record content revealed for this session.');
+                    } else {
+                        this.showToast('Incorrect password.', true);
+                    }
+                }
+            },
+            addPrescriptionItem() { const name = document.getElementById('prescription-search').value; const potency = document.getElementById('prescription-potency').value; const dosage = document.getElementById('prescription-dosage').value; if (!name) return; this.state.currentPrescription.push({ name, potency, dosage }); this.renderPrescriptionList(); document.getElementById('prescription-search').value = ''; document.getElementById('prescription-potency').value = ''; document.getElementById('prescription-dosage').value = ''; },
+            renderPrescriptionList() { const listEl = document.getElementById('prescription-list'); if(!listEl) return; listEl.innerHTML = this.state.currentPrescription.map((item, index) => `<div class="flex justify-between items-center bg-slate-100 p-1 rounded"><span>${item.name} (${item.potency}) - ${item.dosage}</span><button data-index="${index}" class="remove-prescription text-red-500 hover:text-red-700">✖</button></div>`).join(''); listEl.querySelectorAll('.remove-prescription').forEach(btn => btn.addEventListener('click', e => { this.state.currentPrescription.splice(e.target.dataset.index, 1); this.renderPrescriptionList(); })); },
+            async saveHistoryRecord(patientId, historyId = null, shouldLock = false) {
+                const formEl = document.getElementById('history-form-container');
+                const complaint = formEl.querySelector('#history-complaint').value;
+                if (!complaint) { this.showToast("Chief Complaint is required.", true); return; }
+
+                if (shouldLock) {
+                    const enteredPassword = await this.showPasswordPrompt('lock');
+                    if (enteredPassword === null) return; 
+                    
+                    const adminPassword = this.state.settings.adminPassword || 'Admin123';
+                    if (enteredPassword !== adminPassword) {
+                        this.showToast('Incorrect password. Record not saved.', true);
+                        return;
+                    }
+                }
+
+                const recordData = {
+                    patientId: parseInt(patientId),
+                    complaint,
+                    fee: formEl.querySelector('#history-fee').value,
+                    notes: formEl.querySelector('#history-notes').value,
+                    prescription: this.state.currentPrescription,
+                    presentIllness: formEl.querySelector('#history-present-illness').value,
+                    pastHistory: formEl.querySelector('#history-past').value,
+                    familyHistory: formEl.querySelector('#history-family').value,
+                    followUpDate: formEl.querySelector('#history-follow-up').value,
+                };
+
+                if (historyId) {
+                    const index = this.state.histories.findIndex(h => h.id == historyId);
+                    if (index !== -1) {
+                        const existingRecord = this.state.histories[index];
+                        this.state.histories[index] = { ...existingRecord, ...recordData };
+                        if (shouldLock) {
+                            this.state.histories[index].isLocked = true;
+                        }
+                        this.showToast("History record updated.");
+                    }
+                } else {
+                    recordData.id = Date.now();
+                    recordData.isLocked = shouldLock;
+                    this.state.histories.push(recordData);
+                    this.showToast("History record saved.");
+                }
+
+                if (shouldLock) {
+                    this.showToast("Record saved and locked!");
+                }
+
+                this.saveState();
+                this.renderHistoryForPatient(patientId);
+            },
+            showPasswordPrompt(action) {
+                return new Promise((resolve) => {
+                    const modalHTML = Templates.passwordPromptModal(action);
+                    document.body.insertAdjacentHTML('beforeend', modalHTML);
+                    const modal = document.getElementById('password-prompt-modal');
+                    const confirmBtn = document.getElementById('confirm-password-prompt');
+                    const cancelBtn = document.getElementById('cancel-password-prompt');
+                    const passwordInput = document.getElementById('admin-password-confirm');
+
+                    const closeModal = (password) => {
+                        modal.remove();
+                        resolve(password);
+                    };
+
+                    confirmBtn.addEventListener('click', () => {
+                        closeModal(passwordInput.value);
+                    });
+                    
+                    cancelBtn.addEventListener('click', () => {
+                        closeModal(null);
+                    });
+
+                    passwordInput.addEventListener('keyup', (e) => {
+                        if (e.key === 'Enter') {
+                            closeModal(passwordInput.value);
+                        } else if (e.key === 'Escape') {
+                            closeModal(null);
+                        }
+                    });
+                    
+                    modal.classList.add('active');
+                    passwordInput.focus();
+                });
+            },
+            showPatientModal(patient = {}) { const modalHTML = Templates.patientModal(patient); document.body.insertAdjacentHTML('beforeend', modalHTML); const modal = document.getElementById('patient-modal'); modal.classList.add('active'); const closeModal = () => modal.remove(); document.getElementById('cancel-patient-modal').addEventListener('click', closeModal); document.getElementById('save-patient-btn').addEventListener('click', () => { const id = document.getElementById('patient-id').value; const name = document.getElementById('patient-name').value; const phone = document.getElementById('patient-phone').value; const age = document.getElementById('patient-age').value; const gender = document.getElementById('patient-gender').value; if (!name || !phone || !age || !gender) { this.showToast("Please fill all required fields.", true); return; } const patientData = { id: id ? parseInt(id) : Date.now(), name, phone, age, gender }; if (!id) { patientData.caseNumber = this.generateCaseNumber(); } else { const oldPatient = this.state.patients.find(p => p.id == id); patientData.caseNumber = oldPatient.caseNumber; } if (id) { const index = this.state.patients.findIndex(p => p.id == id); this.state.patients[index] = patientData; } else { this.state.patients.push(patientData); } this.saveState(); this.switchPage(this.state.currentPage); this.showToast(`Patient ${id ? 'updated' : 'saved'}!`); closeModal(); }); if (patient?.id) { document.getElementById('delete-patient-btn').addEventListener('click', () => { if (confirm(`Are you sure you want to delete ${patient.name}? This will also delete all their history, bills, and communication logs.`)) { this.state.patients = this.state.patients.filter(p => p.id !== patient.id); this.state.histories = this.state.histories.filter(h => h.patientId !== patient.id); this.state.appointments = this.state.appointments.filter(a => a.patientId !== patient.id); this.state.bills = this.state.bills.filter(b => b.patientId !== patient.id); this.state.communications = this.state.communications.filter(c => c.patientId !== patient.id); this.saveState(); this.switchPage('patients'); this.showToast('Patient deleted.', true); closeModal(); } }); } },
+            showAppointmentModal(apt = {}) { document.body.insertAdjacentHTML('beforeend', Templates.appointmentModal(apt, this.state.patients)); const modal = document.getElementById('appointment-modal'); modal.classList.add('active'); const closeModal = () => modal.remove(); document.getElementById('cancel-appointment-modal').addEventListener('click', closeModal); document.getElementById('save-appointment-btn').addEventListener('click', () => { const id = document.getElementById('appointment-id').value; const patientId = parseInt(document.getElementById('appointment-patient').value); const date = document.getElementById('appointment-date').value; const time = document.getElementById('appointment-time').value; if (!patientId || !date || !time) { this.showToast("Patient, date, and time are required.", true); return; } const aptData = { id: id ? parseInt(id) : Date.now(), patientId, date, time, notes: document.getElementById('appointment-notes').value }; if (id) { const index = this.state.appointments.findIndex(a => a.id == id); this.state.appointments[index] = aptData; } else { this.state.appointments.push(aptData); } this.saveState(); this.render_appointments(); this.showToast('Appointment saved!'); closeModal(); }); if (apt.id) { document.getElementById('delete-appointment-btn').addEventListener('click', () => { if (confirm('Delete this appointment?')) { this.state.appointments = this.state.appointments.filter(a => a.id !== apt.id); this.saveState(); this.render_appointments(); this.showToast('Appointment deleted.', true); closeModal(); } }); } },
+            showMedicineModal(med = {}) { document.body.insertAdjacentHTML('beforeend', Templates.medicineModal(med)); const modal = document.getElementById('medicine-modal'); modal.classList.add('active'); const closeModal = () => modal.remove(); document.getElementById('cancel-medicine-modal').addEventListener('click', closeModal); document.getElementById('save-medicine-btn').addEventListener('click', () => { const id = document.getElementById('medicine-id').value; const name = document.getElementById('medicine-name').value; if (!name) { this.showToast("Medicine name is required.", true); return; } const medData = { id: id ? parseInt(id) : Date.now(), name, commonName: document.getElementById('medicine-common-name').value, keySymptoms: document.getElementById('medicine-symptoms').value.split(',').map(s => s.trim()).filter(Boolean), uses: document.getElementById('medicine-uses').value.split(',').map(s => s.trim()).filter(Boolean), }; if (id) { const index = this.state.medicines.findIndex(m => m.id == id); this.state.medicines[index] = medData; } else { this.state.medicines.push(medData); } this.saveState(); this.render_medicines(); this.showToast('Medicine saved!'); closeModal(); }); if (med.id) { document.getElementById('delete-medicine-btn').addEventListener('click', () => { if (confirm(`Delete ${med.name}?`)) { this.state.medicines = this.state.medicines.filter(m => m.id !== med.id); this.state.inventory = this.state.inventory.filter(i => i.medId !== med.id); this.saveState(); this.render_medicines(); this.showToast('Medicine deleted.', true); closeModal(); } }); } },
+            showBillModal(bill = {}) { document.body.insertAdjacentHTML('beforeend', Templates.billModal(bill, this.state.patients)); const modal = document.getElementById('bill-modal'); modal.classList.add('active'); const closeModal = () => modal.remove(); const updateTotal = () => { let total = 0; document.querySelectorAll('.bill-item').forEach(item => { const qty = parseFloat(item.querySelector('input[placeholder="Qty"]').value) || 0; const price = parseFloat(item.querySelector('input[placeholder="Price"]').value) || 0; total += qty * price; }); document.getElementById('bill-total').textContent = total.toFixed(2); }; const addBillItem = (item = { description: '', qty: 1, price: 0 }) => { const container = document.getElementById('bill-items-container'); const itemDiv = document.createElement('div'); itemDiv.className = 'bill-item flex items-center gap-2'; itemDiv.innerHTML = `<input type="text" placeholder="Description" class="flex-grow p-2 border rounded" value="${item.description}"><input type="number" placeholder="Qty" class="w-20 p-2 border rounded" value="${item.qty}"><input type="number" placeholder="Price" class="w-24 p-2 border rounded" value="${item.price}"><button class="remove-bill-item-btn text-red-500 hover:text-red-700 p-2">✖</button>`; container.appendChild(itemDiv); itemDiv.querySelector('button').addEventListener('click', (e) => { e.target.parentElement.remove(); updateTotal(); }); itemDiv.querySelectorAll('input').forEach(input => input.addEventListener('input', updateTotal)); }; document.getElementById('add-bill-item-btn').addEventListener('click', () => addBillItem()); document.getElementById('cancel-bill-modal').addEventListener('click', closeModal); document.getElementById('save-bill-btn').addEventListener('click', () => { const id = document.getElementById('bill-id').value; const patientId = parseInt(document.getElementById('bill-patient').value); const date = document.getElementById('bill-date').value; if (!patientId || !date) { this.showToast("Patient and date are required.", true); return; } const items = []; document.querySelectorAll('.bill-item').forEach(item => { items.push({ description: item.querySelector('input[placeholder="Description"]').value, qty: parseFloat(item.querySelector('input[placeholder="Qty"]').value), price: parseFloat(item.querySelector('input[placeholder="Price"]').value) }); }); const billData = { id: id ? parseInt(id) : Date.now(), patientId, date, status: document.getElementById('bill-status').value, items }; if (id) { const index = this.state.bills.findIndex(b => b.id == id); this.state.bills[index] = billData; } else { this.state.bills.push(billData); } this.saveState(); this.render_billing(); this.showToast('Bill saved!'); closeModal(); }); if(bill.id) { document.getElementById('print-bill-btn').addEventListener('click', () => this.generateInvoicePDF(bill.id)); document.getElementById('delete-bill-btn').addEventListener('click', () => { if(confirm('Delete this bill?')){ this.state.bills = this.state.bills.filter(b => b.id !== bill.id); this.saveState(); this.render_billing(); this.showToast('Bill deleted.', true); closeModal(); }}); } document.querySelectorAll('.bill-item input').forEach(input => input.addEventListener('input', updateTotal)); updateTotal(); },
+            showExpenseModal(exp = {}) { document.body.insertAdjacentHTML('beforeend', Templates.expenseModal(exp)); const modal = document.getElementById('expense-modal'); modal.classList.add('active'); const closeModal = () => modal.remove(); document.getElementById('cancel-expense-modal').addEventListener('click', closeModal); document.getElementById('save-expense-btn').addEventListener('click', () => { const id = document.getElementById('expense-id').value; const date = document.getElementById('expense-date').value; const category = document.getElementById('expense-category').value; const description = document.getElementById('expense-description').value; const amount = parseFloat(document.getElementById('expense-amount').value); if (!date || !category || !description || !amount) { this.showToast("Please fill all required fields.", true); return; } const expData = { id: id ? parseInt(id) : Date.now(), date, category, description, amount }; if (id) { const index = this.state.expenses.findIndex(e => e.id == id); this.state.expenses[index] = expData; } else { this.state.expenses.push(expData); } this.saveState(); this.render_expenses(); this.showToast('Expense saved!'); closeModal(); }); if (exp.id) { document.getElementById('delete-expense-btn').addEventListener('click', () => { if (confirm('Delete this expense?')) { this.state.expenses = this.state.expenses.filter(e => e.id !== exp.id); this.saveState(); this.render_expenses(); this.showToast('Expense deleted.', true); closeModal(); } }); } },
+            updateStock(medId, change) { medId = parseInt(medId); let item = this.state.inventory.find(i => i.medId === medId); if (item) { item.qty += change; if(item.qty < 0) item.qty = 0; } else if (change > 0) { this.state.inventory.push({ medId, qty: change }); } this.saveState(); this.render_inventory(); },
+            generateCaseNumber() {
+                const now = new Date();
+                const prefix = now.getFullYear().toString() + (now.getMonth() + 1).toString().padStart(2, '0');
+                let nextNumber = 1;
+                if (this.state.settings.caseNumberPrefix === prefix) {
+                    nextNumber = this.state.settings.lastCaseNumber + 1;
+                }
+                this.state.settings.caseNumberPrefix = prefix;
+                this.state.settings.lastCaseNumber = nextNumber;
+                this.saveState();
+                return `${prefix}-${nextNumber.toString().padStart(3, '0')}`;
+            },
+            backupData() { const dataStr = JSON.stringify(this.state); const blob = new Blob([dataStr], {type: "application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `homeocare-backup-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); this.showToast('Backup downloaded!'); },
+            restoreData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { try { const restoredState = JSON.parse(e.target.result); if (confirm("This will overwrite all current data. Are you sure?")) { this.state = { ...this.state, ...restoredState }; this.saveState(); this.showToast("Data restored! Reloading..."); setTimeout(() => window.location.reload(), 1500); } } catch (err) { this.showToast("Invalid backup file.", true); } }; reader.readAsText(file); },
+            generatePatientPDF(patientId) { const patient = this.state.patients.find(p => p.id == patientId); const patientHistories = this.state.histories.filter(h => h.patientId == patientId).sort((a, b) => b.id - a.id); if (!patient) return; const { jsPDF } = window.jspdf; const doc = new jsPDF(); const settings = this.state.settings; doc.setFontSize(20).setFont(undefined, 'bold'); doc.text(settings.clinicName, 105, 20, { align: 'center' }); doc.setFontSize(12).setFont(undefined, 'normal'); doc.text(`Dr. ${settings.doctorName}`, 105, 28, { align: 'center' }); if(settings.clinicAddress) doc.text(settings.clinicAddress, 105, 35, { align: 'center' }); if(settings.clinicPhone) doc.text(settings.clinicPhone, 105, 42, { align: 'center' }); doc.line(15, 50, 195, 50); let y = 60; doc.setFontSize(14).setFont(undefined, 'bold'); doc.text('Patient Medical History', 15, y); y+=10; doc.setFontSize(12).setFont(undefined, 'normal'); doc.text(`Name: ${patient.name} (#${patient.caseNumber})`, 15, y); doc.text(`Age: ${patient.age} | Gender: ${patient.gender}`, 15, y + 7); doc.text(`Phone: ${patient.phone}`, 15, y + 14); y+=21; doc.line(15, y, 195, y); y+=10; patientHistories.forEach(h => { if (y > 250) { doc.addPage(); y = 20; } doc.setFontSize(12).setFont(undefined, 'bold'); doc.text(`Visit: ${new Date(h.id).toLocaleString()}`, 15, y); doc.setFontSize(10).setFont(undefined, 'normal'); doc.text(`Fee: ₹${h.fee || 0}`, 170, y); y += 7; const sections = [ { title: 'Chief Complaint', content: h.complaint }, { title: 'Present Illness', content: h.presentIllness }, { title: 'Past History', content: h.pastHistory }, { title: 'Family History', content: h.familyHistory }, ]; sections.forEach(sec => { if (sec.content) { if (y > 260) { doc.addPage(); y = 20; } doc.setFont(undefined, 'bold').text(`${sec.title}:`, 20, y); y += 5; const text = doc.splitTextToSize(sec.content, 170); doc.setFont(undefined, 'normal').text(text, 20, y); y += (text.length * 4) + 4; } }); if (h.prescription && h.prescription.length > 0) { if (y > 240) { doc.addPage(); y = 20; } doc.setFont(undefined, 'bold').text('Prescription:', 20, y); doc.autoTable({ startY: y + 2, head: [['Medicine', 'Potency', 'Dosage']], body: h.prescription.map(p => [p.name, p.potency, p.dosage]), theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [44, 120, 115] }, margin: { left: 20, right: 20} }); y = doc.autoTable.previous.finalY + 8; } if (h.notes) { if (y > 260) { doc.addPage(); y = 20; } doc.setFont(undefined, 'bold').text('Notes:', 20, y); y += 5; const notes = doc.splitTextToSize(h.notes, 170); doc.setFont(undefined, 'normal').text(notes, 20, y); y += (notes.length * 4) + 4; } doc.setLineDashPattern([1, 1], 0); doc.line(15, y, 195, y); doc.setLineDashPattern([], 0); y += 10; }); doc.save(`History-${patient.name.replace(/ /g, '_')}.pdf`); },
+            generateInvoicePDF(billId) { const bill = this.state.bills.find(b => b.id === billId); if (!bill) return; const patient = this.state.patients.find(p => p.id === bill.patientId); const settings = this.state.settings; const { jsPDF } = window.jspdf; const doc = new jsPDF(); doc.setFontSize(22).setFont(undefined, 'bold'); doc.text(settings.clinicName, 15, 20); doc.setFontSize(12).setFont(undefined, 'normal'); doc.text(`Dr. ${settings.doctorName}`, 15, 28); if(settings.clinicAddress) doc.text(settings.clinicAddress, 15, 35); if(settings.clinicPhone) doc.text(settings.clinicPhone, 15, 42); doc.setFontSize(18).setFont(undefined, 'bold'); doc.text('INVOICE', 195, 20, { align: 'right' }); doc.setFontSize(12).setFont(undefined, 'normal'); doc.text(`Bill No: ${bill.id}`, 195, 28, { align: 'right' }); doc.text(`Date: ${new Date(bill.date + 'T00:00:00').toLocaleDateString()}`, 195, 35, { align: 'right' }); doc.setLineWidth(0.5); doc.line(15, 50, 195, 50); doc.setFont(undefined, 'bold'); doc.text('Bill To:', 15, 60); doc.setFont(undefined, 'normal'); doc.text(`${patient.name} (#${patient.caseNumber})`, 15, 67); doc.text(`Phone: ${patient.phone}`, 15, 74); doc.text(`Age: ${patient.age}, Gender: ${patient.gender}`, 15, 81); const tableData = bill.items.map((item, index) => [ index + 1, item.description, item.qty, `₹${item.price.toFixed(2)}`, `₹${(item.qty * item.price).toFixed(2)}` ]); const totalAmount = bill.items.reduce((sum, item) => sum + (item.qty * item.price), 0); doc.autoTable({ startY: 90, head: [['#', 'Item Description', 'Qty', 'Price', 'Total']], body: tableData, theme: 'striped', headStyles: { fillColor: [44, 120, 115] }, didDrawPage: (data) => { let y = data.cursor.y; doc.setFontSize(12).setFont(undefined, 'bold'); doc.text('Total Amount:', 140, y + 15); doc.text(`₹${totalAmount.toFixed(2)}`, 195, y + 15, { align: 'right' }); doc.text('Status:', 140, y + 22); doc.setTextColor(bill.status === 'paid' ? '#166534' : '#991b1b'); doc.text(bill.status.toUpperCase(), 195, y + 22, { align: 'right' }); doc.setTextColor(0,0,0); } }); doc.save(`Invoice-${bill.id}-${patient.name.replace(/ /g, '_')}.pdf`); },
+            downloadCSV(data, filename) { const headers = Object.keys(data[0]); const csvRows = [ headers.join(','), ...data.map(row => headers.map(header => JSON.stringify(row[header])).join(',')) ]; const csvString = csvRows.join('\n'); const blob = new Blob([csvString], { type: 'text/csv' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); },
+            generateMedicineReport() { const startDate = document.getElementById('report-start-date').value; const endDate = document.getElementById('report-end-date').value; if (!startDate || !endDate) { this.showToast('Please select a start and end date.', true); return; } const reportData = []; this.state.histories.filter(h => { const visitDate = new Date(h.id).toISOString().slice(0, 10); return visitDate >= startDate && visitDate <= endDate; }).forEach(h => { const patient = this.state.patients.find(p => p.id === h.patientId); if (patient && h.prescription) { h.prescription.forEach(p => { reportData.push({ 'Visit Date': new Date(h.id).toLocaleDateString(), 'Patient Name': patient.name, 'Patient Phone': patient.phone, 'Medicine': p.name, 'Potency': p.potency, 'Dosage': p.dosage, }); }); } }); if (reportData.length === 0) { this.showToast('No data found for the selected date range.'); return; } this.downloadCSV(reportData, `MedicineReport_${startDate}_to_${endDate}.csv`); },
+            generateVisitReport() { const startDate = document.getElementById('report-start-date').value; const endDate = document.getElementById('report-end-date').value; if (!startDate || !endDate) { this.showToast('Please select a start and end date.', true); return; } const reportData = this.state.histories.filter(h => { const visitDate = new Date(h.id).toISOString().slice(0, 10); return visitDate >= startDate && visitDate <= endDate; }).map(h => { const patient = this.state.patients.find(p => p.id === h.patientId); return { 'Visit Date': new Date(h.id).toLocaleString(), 'Patient Name': patient ? patient.name : 'Unknown', 'Patient Phone': patient ? patient.phone : 'N/A', 'Chief Complaint': h.complaint, 'Fee': h.fee || 0, }; }); if (reportData.length === 0) { this.showToast('No data found for the selected date range.'); return; } this.downloadCSV(reportData, `PatientVisits_${startDate}_to_${endDate}.csv`); },
+            async getAiSymptomAnalysis() {
+                const complaint = document.getElementById('history-complaint').value;
+                const container = document.getElementById('ai-suggestion-container');
+                if (!this.ai) {
+                    container.innerHTML = `<div class="ai-suggestion-box text-red-600">Please set your Gemini API Key in the Settings page to use this feature.</div>`;
+                    return;
+                }
+                if (!complaint) {
+                    this.showToast('Please enter chief complaint first.', true);
+                    return;
+                }
+                container.innerHTML = `<div class="ai-suggestion-box"> <i class="fas fa-spinner fa-spin"></i> Analyzing symptoms...</div>`;
+                try {
+                    const prompt = `You are a homeopathic expert. Based on the following chief complaint, suggest the top 3 most likely homeopathic remedies. For each remedy, provide a brief, one-sentence justification. Format the output as a numbered list. Symptoms: "${complaint}"`;
+                    
+                    const response = await this.ai.models.generateContent({
+                        model: 'gemini-3-flash-preview',
+                        contents: prompt
+                    });
+                    
+                    const text = response.text;
+                    const suggestions = text.split('\n').filter(line => line.match(/^\d\./));
+                    
+                    if (suggestions.length > 0) {
+                        container.innerHTML = `<div class="ai-suggestion-box">
+                            <p class="font-semibold mb-2 flex items-center gap-2"><i class="fas fa-lightbulb text-yellow-500"></i> AI Suggestions:</p>
+                            ${suggestions.map(s => {
+                                const remedyNameMatch = s.match(/\d\.\s*(\w+\s*\w*)/);
+                                const remedyName = remedyNameMatch ? remedyNameMatch[1].trim() : "Unknown";
+                                return `<p class="ai-suggestion-item" data-remedy="${remedyName}">${s}</p>`;
+                            }).join('')}
+                        </div>`;
+
+                        container.querySelectorAll('.ai-suggestion-item').forEach(item => {
+                            item.addEventListener('click', () => {
+                                document.getElementById('prescription-search').value = item.dataset.remedy;
+                                this.showToast(`${item.dataset.remedy} added to prescription search.`);
+                            });
+                        });
+                    } else {
+                         container.innerHTML = `<div class="ai-suggestion-box">No specific remedies could be determined. Please add more details.</div>`;
+                    }
+                } catch(error) {
+                    console.error("AI Analysis Error:", error);
+                    container.innerHTML = `<div class="ai-suggestion-box text-red-600">Could not get AI suggestions. Please check your API key or network.</div>`;
+                    this.showToast('AI analysis failed.', true);
+                }
+            },
+            updateFinancials() {
+                const filter = document.getElementById('financials-date-filter').value;
+                const now = new Date();
+                let startDate, endDate = new Date();
+
+                switch(filter) {
+                    case 'this-month':
+                        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                        break;
+                    case 'last-month':
+                        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+                        break;
+                    case 'last-3-months':
+                        startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+                        break;
+                    case 'this-year':
+                        startDate = new Date(now.getFullYear(), 0, 1);
+                        break;
+                }
+
+                const startDateStr = startDate.toISOString().slice(0,10);
+                const endDateStr = endDate.toISOString().slice(0,10);
+
+                const relevantBills = this.state.bills.filter(b => b.date >= startDateStr && b.date <= endDateStr && b.status === 'paid');
+                const relevantExpenses = this.state.expenses.filter(e => e.date >= startDateStr && e.date <= endDateStr);
+
+                const totalRevenue = relevantBills.reduce((sum, bill) => sum + bill.items.reduce((itemSum, item) => itemSum + (item.qty * item.price), 0), 0);
+                const totalExpenses = relevantExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+                const netProfit = totalRevenue - totalExpenses;
+
+                document.getElementById('financials-revenue').textContent = `₹${totalRevenue.toLocaleString('en-IN')}`;
+                document.getElementById('financials-expenses').textContent = `₹${totalExpenses.toLocaleString('en-IN')}`;
+                document.getElementById('financials-profit').textContent = `₹${netProfit.toLocaleString('en-IN')}`;
+
+                this.renderMonthlyBarChart(startDate);
+                this.renderExpensePieChart(relevantExpenses);
+            },
+            renderMonthlyBarChart(startDate) {
+                const container = document.getElementById('monthly-chart-container');
+                const months = Array.from({length: 3}, (_, i) => new Date(startDate.getFullYear(), startDate.getMonth() + i, 1));
+                
+                const monthlyData = months.map(month => {
+                    const monthStart = month.toISOString().slice(0,8) + '01';
+                    const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0).toISOString().slice(0,10);
+                    
+                    const revenue = this.state.bills
+                        .filter(b => b.date >= monthStart && b.date <= monthEnd && b.status === 'paid')
+                        .reduce((sum, bill) => sum + bill.items.reduce((itemSum, item) => itemSum + (item.qty * item.price), 0), 0);
+
+                    const expenses = this.state.expenses
+                        .filter(e => e.date >= monthStart && e.date <= monthEnd)
+                        .reduce((sum, exp) => sum + exp.amount, 0);
+
+                    return { month: month.toLocaleString('default', { month: 'short' }), revenue, expenses };
+                });
+
+                const maxVal = Math.max(1, ...monthlyData.flatMap(d => [d.revenue, d.expenses]));
+                container.innerHTML = monthlyData.map(d => {
+                    const revHeight = maxVal > 0 ? (d.revenue / maxVal) * 100 : 0;
+                    const expHeight = maxVal > 0 ? (d.expenses / maxVal) * 100 : 0;
+                    return `
+                        <div class="flex-1 flex flex-col items-center justify-end h-full">
+                            <div class="flex items-end h-full w-full justify-center gap-1">
+                                <div class="chart-bar w-1/2" style="height: ${revHeight}%" title="Revenue: ₹${d.revenue.toLocaleString()}"></div>
+                                <div class="chart-bar-expense w-1/2" style="height: ${expHeight}%" title="Expenses: ₹${d.expenses.toLocaleString()}"></div>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-2">${d.month}</p>
+                        </div>
+                    `;
+                }).join('');
+            },
+            renderExpensePieChart(expenses) {
+                const container = document.getElementById('expense-pie-chart-container');
+                const byCategory = expenses.reduce((acc, exp) => {
+                    acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+                    return acc;
+                }, {});
+
+                const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+                if(totalExpenses === 0) {
+                    container.innerHTML = `<p class="text-slate-500">No expense data for this period.</p>`;
+                    return;
+                }
+
+                const colors = ['#34d399', '#fbbf24', '#60a5fa', '#f87171', '#9333ea'];
+                let gradientParts = [];
+                let currentPercentage = 0;
+                let legendHTML = '<div class="ml-8 space-y-2">';
+
+                Object.entries(byCategory).forEach(([category, amount], index) => {
+                    const percentage = (amount / totalExpenses) * 100;
+                    const color = colors[index % colors.length];
+                    gradientParts.push(`${color} ${currentPercentage}% ${currentPercentage + percentage}%`);
+                    currentPercentage += percentage;
+                    legendHTML += `
+                        <div class="flex items-center text-sm">
+                            <div class="w-3 h-3 rounded-full mr-2" style="background-color: ${color}"></div>
+                            <span>${category}: ₹${amount.toLocaleString('en-IN')} (${percentage.toFixed(1)}%)</span>
+                        </div>
+                    `;
+                });
+                legendHTML += '</div>';
+
+                container.innerHTML = `
+                    <div class="w-48 h-48 rounded-full" style="background: conic-gradient(${gradientParts.join(', ')})"></div>
+                    ${legendHTML}
+                `;
+            },
+            renderCommunicationLog(patientId) {
+                const listEl = document.getElementById('comm-list');
+                const comms = this.state.communications
+                    .filter(c => c.patientId == patientId)
+                    .sort((a,b) => b.id - a.id);
+                listEl.innerHTML = comms.length > 0 ? comms.map(Templates.communicationLogItem).join('') : '<p class="text-center text-slate-500 text-sm py-4">No communication logs yet.</p>';
+            },
+            saveCommunicationLog(patientId) {
+                const textEl = document.getElementById('new-comm-text');
+                const text = textEl.value.trim();
+                if (!text) return;
+                
+                const newComm = {
+                    id: Date.now(),
+                    patientId: parseInt(patientId),
+                    text: text
+                };
+                this.state.communications.push(newComm);
+                this.saveState();
+                textEl.value = '';
+                this.renderCommunicationLog(patientId);
+                this.showToast('Log entry saved.');
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => App.init());
+    </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
